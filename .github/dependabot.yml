@@ -13,6 +13,9 @@ updates:
       time: "06:00"
       timezone: Asia/Yekaterinburg
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
     groups:
       frontend-minor:
         update-types:
@@ -29,6 +32,9 @@ updates:
       time: "06:00"
       timezone: Asia/Yekaterinburg
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
     groups:
       backend-minor:
         update-types:
@@ -44,6 +50,8 @@ updates:
       time: "06:00"
       timezone: Asia/Yekaterinburg
     open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
 
   # Nginx Dockerfile — base image bumps (nginx:alpine, node:20 builder, etc.).
   - package-ecosystem: docker
@@ -54,6 +62,8 @@ updates:
       time: "06:00"
       timezone: Asia/Yekaterinburg
     open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
 
   # GitHub Actions used in .github/workflows/*.yml.
   - package-ecosystem: github-actions
@@ -64,6 +74,8 @@ updates:
       time: "06:00"
       timezone: Asia/Yekaterinburg
     open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci(deps)"
     groups:
       actions-minor:
         update-types:
