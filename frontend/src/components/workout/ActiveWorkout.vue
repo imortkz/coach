@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
 import { useWorkoutsStore } from '@/stores/workouts'
 import { useProgramsStore } from '@/stores/programs'
 import { useRestTimer } from '@/composables/useRestTimer'
+import { apiFetch } from '@/lib/apiFetch'
 import type { Program, ProgramExercise, WorkoutSet, PreFillSet } from '@/types'
 import ExerciseCard from './ExerciseCard.vue'
 import RestTimer from './RestTimer.vue'
@@ -226,7 +227,7 @@ function handleDiscard() {
     },
     () => {
       // Permanently delete on server, then clear store
-      fetch(`/api/workouts/${workoutId}`, { method: 'DELETE' }).catch(() => {})
+      apiFetch(`/api/workouts/${workoutId}`, { method: 'DELETE' }).catch(() => {})
       workoutsStore.activeWorkout = null
       workoutsStore.preFill = {}
       discarding.value = false
