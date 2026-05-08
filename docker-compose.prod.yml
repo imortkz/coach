@@ -65,6 +65,31 @@ services:
     depends_on:
       - backend
 
+  # Backup sidecar — hourly mongodump archives written to /var/backups/gymcoach
+  # on the host, with daily promotion at midnight UTC and configurable retention.
+  # Connects to MongoDB on the internal Docker network only (no host ports).
+  # On-demand restore is run manually via backup/restore-full.sh and
+  # backup/restore-user.sh — see DEPLOYMENT.md "Backup & Restore".
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DB_NAME: gymcoach
+      BACKUP_HOURLY_KEEP: ${BACKUP_HOURLY_KEEP:-48}
+      BACKUP_DAILY_KEEP: ${BACKUP_DAILY_KEEP:-30}
+    volumes:
+      # Host bind-mount: archives live on the VPS filesystem so an off-site
+      # copy job (rclone, etc.) can pick them up without touching containers.
+      - /var/backups/gymcoach:/backups
+    networks:
+      - gymcoach
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
   # Certbot — issues and renews Let's Encrypt certs.
   # First-issue and renewals are run via `docker compose run --rm certbot ...`
   # (manual command flow in DEPLOYMENT.md). The container itself stays up only
