@@ -363,7 +363,8 @@ onMounted(async () => {
           <div v-else class="border border-gray-300 rounded-lg p-3">
             <div class="flex items-center gap-2 mb-2">
               <input
-                v-model="searchQuery"
+                :value="searchQuery"
+                @input="searchQuery = ($event.target as HTMLInputElement).value"
                 type="text"
                 :placeholder="t('exercises.search_placeholder')"
                 class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
