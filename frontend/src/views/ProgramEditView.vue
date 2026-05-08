@@ -33,7 +33,7 @@ interface BuilderSet {
 }
 
 interface BuilderExercise {
-  exercise_id: number
+  exercise_id: string
   exercise_name: string
   equipment: string
   sets: BuilderSet[]

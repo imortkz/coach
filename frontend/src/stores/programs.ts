@@ -9,7 +9,7 @@ export interface ProgramCreatePayload {
   name: string
   rest_timer_disabled?: boolean
   exercises: {
-    exercise_id: number
+    exercise_id: string
     order: number
     sets: {
       set_number: number

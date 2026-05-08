@@ -7,8 +7,8 @@ const API_BASE = '/api/workouts'
 
 export const useWorkoutsStore = defineStore('workouts', () => {
   const activeWorkout = ref<Workout | null>(null)
-  const preFill = ref<Record<number, PreFillSet[]>>({})
-  const suggestions = ref<Record<number, SuggestionInfo>>({})
+  const preFill = ref<Record<string, PreFillSet[]>>({})
+  const suggestions = ref<Record<string, SuggestionInfo>>({})
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -133,7 +133,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
     }
   }
 
-  async function deleteExerciseSets(exerciseId: number): Promise<void> {
+  async function deleteExerciseSets(exerciseId: string): Promise<void> {
     if (!activeWorkout.value) throw new Error('No active workout')
     error.value = null
     try {

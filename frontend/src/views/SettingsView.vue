@@ -48,7 +48,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore, type Language } from '@/stores/settings'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -56,7 +56,7 @@ const settings = useSettingsStore()
 const savedVisible = ref(false)
 let savedTimer: ReturnType<typeof setTimeout> | null = null
 
-async function selectLanguage(lang: string) {
+async function selectLanguage(lang: Language) {
   if (settings.language === lang) return
   await settings.setLanguage(lang)
   savedVisible.value = true
