@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useProgramsStore } from '@/stores/programs'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [programId: number]
@@ -22,20 +25,20 @@ function totalSets(program: typeof programs.value[0]): number {
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold text-gray-900 mb-2">Start Workout</h1>
-    <p class="text-gray-500 text-sm mb-6">Choose a program to begin.</p>
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ t('workout.pick_title') }}</h1>
+    <p class="text-gray-500 text-sm mb-6">{{ t('workout.pick_subtitle') }}</p>
 
     <div v-if="loading" class="text-center py-12 text-gray-500">
-      Loading programs...
+      {{ t('workout.loading_programs') }}
     </div>
 
     <div v-else-if="programs.length === 0" class="text-center py-12">
-      <p class="text-gray-500 mb-4">No programs yet. Create one first.</p>
+      <p class="text-gray-500 mb-4">{{ t('workout.no_programs') }}</p>
       <router-link
         to="/programs/new"
         class="text-blue-600 hover:text-blue-700 font-medium"
       >
-        Create a program
+        {{ t('workout.create_program_link') }}
       </router-link>
     </div>
 
@@ -48,9 +51,9 @@ function totalSets(program: typeof programs.value[0]): number {
       >
         <h2 class="font-semibold text-gray-900">{{ program.name }}</h2>
         <p class="text-sm text-gray-500 mt-1">
-          {{ program.exercises.length }} exercise{{ program.exercises.length !== 1 ? 's' : '' }}
+          {{ t('programs.exercise_count', program.exercises.length) }}
           <span class="mx-1">&middot;</span>
-          {{ totalSets(program) }} set{{ totalSets(program) !== 1 ? 's' : '' }}
+          {{ t('workout.set_count', totalSets(program)) }}
         </p>
       </button>
     </div>
