@@ -140,7 +140,7 @@ If you get a 5xx or connection refused, fix that before issuing certs — stagin
 Let's Encrypt rate-limits production cert issuance to 5 failures per domain per hour. Always validate the pipeline against staging first:
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm certbot \
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot \
   certonly \
   --webroot -w /var/www/certbot \
   --staging \
@@ -150,6 +150,8 @@ docker compose -f docker-compose.prod.yml run --rm certbot \
   --non-interactive
 ```
 
+> **Note on `--entrypoint certbot`:** the `certbot` service in `docker-compose.prod.yml` has its entrypoint overridden to run a 12h renewal loop. For one-shot commands (first-issue, delete, `--dry-run`) you must pass `--entrypoint certbot` to bypass that loop and invoke the certbot binary directly. The persistent renewal-loop container is unaffected.
+
 A staging cert will be issued (untrusted by browsers but proves the flow works). If you see "Successfully received certificate" — proceed.
 
 If it fails — read the error, fix DNS / nginx / firewall, and re-run staging until it succeeds.
@@ -158,11 +160,11 @@ If it fails — read the error, fix DNS / nginx / firewall, and re-run staging u
 
 ```bash
 # Drop the staging cert so the prod issuance writes cleanly to the same path:
-docker compose -f docker-compose.prod.yml run --rm certbot \
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot \
   delete --cert-name "${DOMAIN}" --non-interactive
 
 # Issue the real cert:
-docker compose -f docker-compose.prod.yml run --rm certbot \
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot \
   certonly \
   --webroot -w /var/www/certbot \
   -d "${DOMAIN}" \
@@ -191,7 +193,7 @@ Telegram's Login Widget only loads on a domain that's registered with the bot:
 #### 3.7 — Verify renewal works without actually renewing
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm certbot \
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot \
   renew --dry-run
 # Exit code 0 + "all renewals succeeded" — you're set.
 ```
