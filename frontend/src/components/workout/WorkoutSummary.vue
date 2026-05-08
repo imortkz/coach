@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Workout } from '@/types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   workout: Workout
@@ -18,10 +21,10 @@ const durationText = computed(() => {
   const start = new Date(raw.endsWith('Z') ? raw : raw + 'Z').getTime()
   const now = Date.now()
   const totalMins = Math.floor((now - start) / 60000)
-  if (totalMins < 60) return `${totalMins} min`
+  if (totalMins < 60) return `${totalMins} ${t('summary.min_short')}`
   const hrs = Math.floor(totalMins / 60)
   const mins = totalMins % 60
-  return `${hrs}h ${mins}m`
+  return `${hrs}${t('summary.hours_short')} ${mins}${t('summary.mins_short')}`
 })
 
 // Unique exercises with at least one logged set
@@ -44,9 +47,9 @@ const totalVolume = computed(() => {
 
 const volumeDisplay = computed(() => {
   if (totalVolume.value >= 1000) {
-    return `${(totalVolume.value / 1000).toFixed(1)}k kg`
+    return `${(totalVolume.value / 1000).toFixed(1)}${t('summary.kg_thousand')}`
   }
-  return `${totalVolume.value.toLocaleString()} kg`
+  return `${totalVolume.value.toLocaleString()} ${t('summary.kg')}`
 })
 </script>
 
@@ -55,7 +58,7 @@ const volumeDisplay = computed(() => {
     <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden">
       <!-- Header -->
       <div class="px-6 pt-6 pb-4">
-        <h2 class="text-xl font-bold text-gray-900">Workout Complete</h2>
+        <h2 class="text-xl font-bold text-gray-900">{{ t('summary.title') }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ programName }}</p>
       </div>
 
@@ -63,19 +66,19 @@ const volumeDisplay = computed(() => {
       <div class="px-6 pb-6 grid grid-cols-2 gap-4">
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-2xl font-bold text-gray-900">{{ durationText }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">Duration</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ t('summary.duration') }}</p>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-2xl font-bold text-gray-900">{{ exerciseCount }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">Exercise{{ exerciseCount !== 1 ? 's' : '' }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ t('summary.exercises_label', exerciseCount) }}</p>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-2xl font-bold text-gray-900">{{ totalSets }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">Set{{ totalSets !== 1 ? 's' : '' }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ t('summary.sets_label', totalSets) }}</p>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-2xl font-bold text-gray-900">{{ volumeDisplay }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">Volume</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ t('summary.volume') }}</p>
         </div>
       </div>
 
@@ -85,13 +88,13 @@ const volumeDisplay = computed(() => {
           class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           @click="emit('cancel')"
         >
-          Keep Going
+          {{ t('summary.keep_going') }}
         </button>
         <button
           class="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
           @click="emit('confirm')"
         >
-          Finish Workout
+          {{ t('summary.finish') }}
         </button>
       </div>
     </div>

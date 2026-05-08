@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWorkoutsStore } from '@/stores/workouts'
 import { useProgramsStore } from '@/stores/programs'
 import { useRestTimer } from '@/composables/useRestTimer'
@@ -11,6 +12,7 @@ import UndoToast from './UndoToast.vue'
 import WorkoutSummary from './WorkoutSummary.vue'
 import ProgramPicker from './ProgramPicker.vue'
 
+const { t } = useI18n()
 const workoutsStore = useWorkoutsStore()
 const programsStore = useProgramsStore()
 
@@ -159,7 +161,7 @@ function handleDeleteSet(setId: number) {
   workoutsStore.activeWorkout.sets = workoutsStore.activeWorkout.sets.filter((s) => s.id !== setId)
 
   showUndoToastFn(
-    'Set deleted',
+    t('workout.toast_set_deleted'),
     () => {
       // Undo: restore the set locally
       if (workoutsStore.activeWorkout) {
@@ -189,7 +191,7 @@ function handleRemoveTemplate({ exerciseId, setNumber }: { exerciseId: string; s
   skippedTemplateSets.value = new Set(skippedTemplateSets.value)
 
   showUndoToastFn(
-    'Set skipped',
+    t('workout.toast_set_skipped'),
     () => {
       // Undo: restore the template set row
       skippedTemplateSets.value.delete(key)
@@ -220,7 +222,7 @@ function handleDiscard() {
   discarding.value = true
 
   showUndoToastFn(
-    'Workout discarded',
+    t('workout.toast_workout_discarded'),
     () => {
       // Undo: restore workout
       discarding.value = false
@@ -297,7 +299,7 @@ const durationText = computed(() => {
     <WorkoutSummary
       v-if="showSummary && workoutsStore.activeWorkout"
       :workout="workoutsStore.activeWorkout"
-      :program-name="program?.name ?? 'Workout'"
+      :program-name="program?.name ?? t('workout.default_program_name')"
       @confirm="handleConfirmFinish"
       @cancel="handleCancelFinish"
     />
@@ -308,10 +310,10 @@ const durationText = computed(() => {
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-lg font-bold text-gray-900">
-              {{ program?.name ?? 'Workout' }}
+              {{ program?.name ?? t('workout.default_program_name') }}
             </h1>
             <p class="text-xs text-gray-500">
-              {{ totalLoggedSets }} set{{ totalLoggedSets !== 1 ? 's' : '' }} logged
+              {{ t('workout.sets_logged', totalLoggedSets) }}
               <span v-if="durationText" class="ml-1">&middot; {{ durationText }}</span>
             </p>
           </div>
@@ -320,14 +322,14 @@ const durationText = computed(() => {
               class="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
               @click="handleDiscard"
             >
-              Discard
+              {{ t('workout.discard') }}
             </button>
             <button
               class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
               :disabled="finishing"
               @click="handleFinish"
             >
-              {{ finishing ? 'Finishing...' : 'Finish Workout' }}
+              {{ finishing ? t('workout.finishing') : t('workout.finish') }}
             </button>
           </div>
         </div>
@@ -354,7 +356,7 @@ const durationText = computed(() => {
       </div>
 
       <div v-else class="text-center py-12 text-gray-500">
-        <p>Loading exercises...</p>
+        <p>{{ t('workout.loading_exercises') }}</p>
       </div>
 
       <!-- Rest Timer -->
