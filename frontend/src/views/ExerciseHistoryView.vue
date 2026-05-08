@@ -6,6 +6,7 @@ import { useExercisesStore } from '@/stores/exercises'
 import { useDisplayName } from '@/composables/useDisplayName'
 import ExerciseChart from '@/components/history/ExerciseChart.vue'
 import SessionTable from '@/components/history/SessionTable.vue'
+import { apiFetch } from '@/lib/apiFetch'
 import type { Exercise, ExerciseHistoryResponse, SuggestionInfo } from '@/types'
 
 const route = useRoute()
@@ -39,7 +40,7 @@ async function loadData() {
       params.set('program_id', String(programId))
     }
 
-    const res = await fetch(`/api/exercises/${exerciseId}/history?${params}`)
+    const res = await apiFetch(`/api/exercises/${exerciseId}/history?${params}`)
     if (!res.ok) throw new Error(`Failed to load history: ${res.statusText}`)
     const data: ExerciseHistoryResponse = await res.json()
     sessions.value = data.sessions

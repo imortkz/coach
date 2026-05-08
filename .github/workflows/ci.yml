@@ -107,6 +107,9 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      - name: Guard against raw fetch('/api/...') calls
+        run: npm run check:no-raw-fetch
+
       - name: Build
         run: npm run build
 
