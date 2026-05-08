@@ -18,7 +18,7 @@ COPY frontend/ .
 RUN npm run build
 
 # Stage 2: nginx with built SPA + runtime template selection (HTTP-only vs HTTPS)
-FROM nginx:1.28-alpine
+FROM nginx:1.29-alpine
 
 # envsubst (gettext) for ${DOMAIN} substitution at startup
 RUN apk add --no-cache gettext
