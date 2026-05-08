@@ -46,6 +46,9 @@ async def _program_to_read(program: Program) -> ProgramRead:
     """Convert a Program document to ProgramRead schema with exercise details."""
     exercises_read = []
     for pe in program.exercises:
+        # Denormalized fallback — used only when the master Exercise has
+        # been deleted. The embedded copy carries only the English fields,
+        # so name_ru / gif_url are unavailable in this branch.
         exercise_read = ExerciseRead(
             id=pe.exercise_id,
             name=pe.exercise_name,
@@ -53,7 +56,11 @@ async def _program_to_read(program: Program) -> ProgramRead:
             equipment=pe.exercise_equipment,
             is_custom=False,  # Denormalized; actual value doesn't matter for read
         )
-        # Try to get fresh exercise data if available
+        # Prefer the live Exercise so name_ru and gif_url follow the
+        # master copy. Without these two fields the frontend's
+        # displayName() always falls through to the English `name`
+        # because name_ru is null on the response — that was the visible
+        # bug in the program editor.
         ex = await Exercise.get(pe.exercise_id)
         if ex:
             exercise_read = ExerciseRead(
@@ -62,6 +69,8 @@ async def _program_to_read(program: Program) -> ProgramRead:
                 muscle_group=ex.muscle_group,
                 equipment=ex.equipment,
                 is_custom=ex.is_custom,
+                name_ru=ex.name_ru,
+                gif_url=ex.gif_url,
             )
 
         exercises_read.append(ProgramExerciseRead(
