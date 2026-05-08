@@ -15,6 +15,11 @@ concurrency:
   group: deploy-master
   cancel-in-progress: true
 
+# The deploy job authenticates to the VPS via the SSH key in secrets, not
+# via GITHUB_TOKEN, so the workflow itself only needs read access.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy to VPS

@@ -10,6 +10,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Minimal token scope — neither pytest nor type-check/build needs to write
+# to the repo or modify issues/PRs.
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend (pytest)
