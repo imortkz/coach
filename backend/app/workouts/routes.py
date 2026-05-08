@@ -1,6 +1,7 @@
 """Workout logging and settings API routes — async MongoDB/Beanie."""
 
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
@@ -12,6 +13,10 @@ from app.programs.models import Program
 from app.workouts.models import Setting, Workout, WorkoutSet
 from app.workouts.schemas import (
     PreFillSet,
+    ReportFrequencyEntry,
+    ReportPersonalRecord,
+    ReportResponse,
+    ReportVolumeEntry,
     SettingRead,
     SettingUpdate,
     SuggestionInfo,
@@ -301,6 +306,126 @@ async def get_active_workout(
     if not workout:
         raise HTTPException(status_code=404, detail="No active workout")
     return _workout_to_read(workout)
+
+
+def _iso_week_label(dt: datetime) -> str:
+    iso = dt.isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+# NB: must be registered BEFORE /{workout_id} or FastAPI will route /report
+# into get_workout(workout_id="report") and 404. Same reason /active sits
+# above the param route.
+@router.get("/report", response_model=ReportResponse)
+async def get_progress_report(
+    weeks: int = 4,
+    current_user: User = Depends(get_current_user),
+) -> ReportResponse:
+    """Aggregate progress over the last `weeks` calendar weeks (Mon–Sun).
+
+    Volume is sum of (weight_kg * reps) for non-warmup sets, grouped by
+    ISO week label and muscle group. Frequency counts distinct completed
+    workouts per week. Personal records compare each exercise's heaviest
+    non-warmup set in the period to its prior best across all earlier
+    workouts of the user.
+    """
+    if weeks < 1 or weeks > 52:
+        raise HTTPException(status_code=422, detail="weeks must be between 1 and 52")
+
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    current_monday = today - timedelta(days=today.weekday())
+    start_monday = current_monday - timedelta(days=7 * (weeks - 1))
+    start_dt = datetime.combine(start_monday, datetime.min.time(), tzinfo=timezone.utc)
+
+    week_starts = [start_monday + timedelta(days=7 * i) for i in range(weeks)]
+    week_labels = [
+        _iso_week_label(datetime.combine(ws, datetime.min.time(), tzinfo=timezone.utc))
+        for ws in week_starts
+    ]
+
+    def label_for(dt: datetime) -> str | None:
+        d = dt.date()
+        for i, ws in enumerate(week_starts):
+            if ws <= d < ws + timedelta(days=7):
+                return week_labels[i]
+        return None
+
+    workouts_in_period = await Workout.find(
+        {
+            "user_id": current_user.id,
+            "completed_at": {"$ne": None, "$gte": start_dt},
+        }
+    ).to_list()
+
+    volume_acc: dict[tuple[str, str], float] = defaultdict(float)
+    freq_acc: dict[str, int] = defaultdict(int)
+    counted_workouts: set[tuple[str, str]] = set()
+    pr_in_period: dict[str, float] = {}
+
+    for w in workouts_in_period:
+        if w.completed_at is None:
+            continue
+        wk_label = label_for(w.completed_at)
+        if wk_label is None:
+            continue
+
+        if (wk_label, w.id) not in counted_workouts:
+            counted_workouts.add((wk_label, w.id))
+            freq_acc[wk_label] += 1
+
+        for s in w.sets:
+            if s.is_warmup or s.weight_kg is None or s.reps is None:
+                continue
+            volume_acc[(wk_label, s.exercise_muscle_group or "Other")] += s.weight_kg * s.reps
+
+            curr_best = pr_in_period.get(s.exercise_name, 0.0)
+            if s.weight_kg > curr_best:
+                pr_in_period[s.exercise_name] = s.weight_kg
+
+    prior_workouts = await Workout.find(
+        {
+            "user_id": current_user.id,
+            "completed_at": {"$ne": None, "$lt": start_dt},
+        }
+    ).to_list()
+
+    prior_best: dict[str, float] = {}
+    for w in prior_workouts:
+        for s in w.sets:
+            if s.is_warmup or s.weight_kg is None:
+                continue
+            if s.weight_kg > prior_best.get(s.exercise_name, 0.0):
+                prior_best[s.exercise_name] = s.weight_kg
+
+    personal_records = sorted(
+        (
+            ReportPersonalRecord(
+                exercise_name=name,
+                best_weight_in_period=period_max,
+                previous_best=prior_best.get(name),
+                is_new_pr=(name not in prior_best) or (period_max > prior_best[name]),
+            )
+            for name, period_max in pr_in_period.items()
+        ),
+        key=lambda r: r.exercise_name,
+    )
+
+    volume_by_week = [
+        ReportVolumeEntry(week=wl, muscle_group=mg, volume_kg=vol)
+        for (wl, mg), vol in sorted(volume_acc.items())
+    ]
+    frequency_by_week = [
+        ReportFrequencyEntry(week=wl, count=freq_acc.get(wl, 0))
+        for wl in week_labels
+    ]
+
+    return ReportResponse(
+        weeks=week_labels,
+        volume_by_week=volume_by_week,
+        frequency_by_week=frequency_by_week,
+        personal_records=personal_records,
+    )
 
 
 @router.get("/{workout_id}", response_model=WorkoutRead)

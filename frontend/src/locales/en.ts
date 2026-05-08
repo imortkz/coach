@@ -4,6 +4,7 @@ export default {
     programs: 'Programs',
     workout: 'Workout',
     history: 'History',
+    report: 'Report',
     settings: 'Settings',
   },
   muscle_groups: {
@@ -41,6 +42,23 @@ export default {
   },
   programs: {
     title: 'Programs',
+  },
+  report: {
+    title: 'Progress Report',
+    loading: 'Loading report...',
+    weeks_n: '{n} weeks',
+    section_volume: 'Volume by muscle group',
+    section_frequency: 'Workouts per week',
+    section_prs: 'Personal records',
+    volume_axis: 'Volume (kg × reps)',
+    workouts_per_week: 'Workouts',
+    col_exercise: 'Exercise',
+    col_period_best: 'Best in period',
+    col_previous_best: 'Previous best',
+    badge_new_pr: 'NEW PR',
+    empty_volume: 'No completed sets in this period yet.',
+    empty_frequency: 'No workouts completed in this period yet.',
+    empty_prs: 'No personal records to show — log a few sets first.',
   },
   settings: {
     title: 'Settings',

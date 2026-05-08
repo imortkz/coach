@@ -4,6 +4,7 @@ export default {
     programs: 'Программы',
     workout: 'Тренировка',
     history: 'История',
+    report: 'Отчёт',
     settings: 'Настройки',
   },
   muscle_groups: {
@@ -41,6 +42,23 @@ export default {
   },
   programs: {
     title: 'Программы',
+  },
+  report: {
+    title: 'Отчёт о прогрессе',
+    loading: 'Загрузка отчёта...',
+    weeks_n: '{n} нед.',
+    section_volume: 'Объём по группам мышц',
+    section_frequency: 'Тренировок в неделю',
+    section_prs: 'Личные рекорды',
+    volume_axis: 'Объём (кг × повторы)',
+    workouts_per_week: 'Тренировки',
+    col_exercise: 'Упражнение',
+    col_period_best: 'Лучший в периоде',
+    col_previous_best: 'Прежний лучший',
+    badge_new_pr: 'НОВЫЙ PR',
+    empty_volume: 'В этом периоде ещё нет завершённых подходов.',
+    empty_frequency: 'В этом периоде ещё нет завершённых тренировок.',
+    empty_prs: 'Пока нет рекордов — залогируй несколько подходов.',
   },
   settings: {
     title: 'Настройки',

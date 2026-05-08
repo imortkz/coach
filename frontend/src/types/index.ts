@@ -91,3 +91,28 @@ export interface ExerciseHistoryResponse {
   sessions: ExerciseSession[]
   suggestion: SuggestionInfo | null
 }
+
+export interface ReportVolumeEntry {
+  week: string
+  muscle_group: string
+  volume_kg: number
+}
+
+export interface ReportFrequencyEntry {
+  week: string
+  count: number
+}
+
+export interface ReportPersonalRecord {
+  exercise_name: string
+  best_weight_in_period: number
+  previous_best: number | null
+  is_new_pr: boolean
+}
+
+export interface ReportResponse {
+  weeks: string[]
+  volume_by_week: ReportVolumeEntry[]
+  frequency_by_week: ReportFrequencyEntry[]
+  personal_records: ReportPersonalRecord[]
+}
