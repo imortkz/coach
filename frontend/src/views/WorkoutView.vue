@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWorkoutsStore } from '@/stores/workouts'
 import ProgramPicker from '@/components/workout/ProgramPicker.vue'
 import ActiveWorkout from '@/components/workout/ActiveWorkout.vue'
 
+const { t } = useI18n()
 const workoutsStore = useWorkoutsStore()
 const activeWorkoutRef = ref<InstanceType<typeof ActiveWorkout> | null>(null)
 
@@ -38,7 +40,7 @@ async function onStartWorkout(programId: number) {
     </div>
 
     <div v-if="loading && !hasActiveWorkout" class="text-center py-12 text-gray-500">
-      Loading...
+      {{ t('workout.loading') }}
     </div>
 
     <ActiveWorkout v-else-if="hasActiveWorkout" ref="activeWorkoutRef" />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useExercisesStore } from '@/stores/exercises'
 import { useDisplayName } from '@/composables/useDisplayName'
 import type { Workout } from '@/types'
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   toggle: []
 }>()
 
+const { t } = useI18n()
 const exercisesStore = useExercisesStore()
 const { displayName } = useDisplayName()
 
@@ -40,9 +42,9 @@ const durationDisplay = computed(() => {
   if (totalMinutes >= 60) {
     const hours = Math.floor(totalMinutes / 60)
     const mins = totalMinutes % 60
-    return `${hours}h ${mins}m`
+    return `${hours}${t('summary.hours_short')} ${mins}${t('summary.mins_short')}`
   }
-  return `${totalMinutes}m`
+  return `${totalMinutes}${t('summary.mins_short')}`
 })
 
 const formattedDate = computed(() => {
@@ -87,8 +89,8 @@ const exerciseGroups = computed<ExerciseGroup[]>(() => {
 })
 
 function formatWeight(weight_kg: number | null, reps: number | null): string {
-  const w = weight_kg !== null ? `${weight_kg}kg` : 'BW'
-  const r = reps !== null ? `${reps} reps` : '-'
+  const w = weight_kg !== null ? `${weight_kg}${t('summary.kg')}` : t('history.bodyweight')
+  const r = reps !== null ? `${reps} ${t('history.reps_short')}` : '-'
   return `${w} x ${r}`
 }
 </script>
@@ -106,8 +108,8 @@ function formatWeight(weight_kg: number | null, reps: number | null): string {
           <span v-if="programName" class="text-xs text-gray-500 truncate">{{ programName }}</span>
         </div>
         <div class="flex items-center gap-3 text-xs text-gray-400">
-          <span>{{ exerciseCount }} exercise{{ exerciseCount !== 1 ? 's' : '' }}</span>
-          <span>{{ totalSets }} set{{ totalSets !== 1 ? 's' : '' }}</span>
+          <span>{{ t('programs.exercise_count', exerciseCount) }}</span>
+          <span>{{ t('workout.set_count', totalSets) }}</span>
           <span v-if="durationDisplay">{{ durationDisplay }}</span>
         </div>
       </div>
@@ -141,9 +143,9 @@ function formatWeight(weight_kg: number | null, reps: number | null): string {
               :key="s.set_number"
               class="text-xs text-gray-600 flex items-center gap-1"
             >
-              <span class="text-gray-400 w-12">Set {{ s.set_number }}</span>
+              <span class="text-gray-400 w-12">{{ t('programs.set_n', { n: s.set_number }) }}</span>
               <span>{{ formatWeight(s.weight_kg, s.reps) }}</span>
-              <span v-if="s.is_warmup" class="text-gray-400 text-[10px]">(warm-up)</span>
+              <span v-if="s.is_warmup" class="text-gray-400 text-[10px]">{{ t('history.warmup_short') }}</span>
             </li>
           </ul>
         </div>
