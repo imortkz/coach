@@ -9,8 +9,8 @@ export interface Exercise {
 }
 
 export interface ProgramSet {
-  id: number
-  program_exercise_id: number
+  id: string
+  program_exercise_id: string
   set_number: number
   target_reps: number
   target_weight_kg: number | null
@@ -18,7 +18,7 @@ export interface ProgramSet {
 }
 
 export interface Program {
-  id: number
+  id: string
   name: string
   created_at: string
   rest_timer_disabled: boolean
@@ -26,8 +26,8 @@ export interface Program {
 }
 
 export interface ProgramExercise {
-  id: number
-  program_id: number
+  id: string
+  program_id: string
   exercise_id: string
   order: number
   sets: ProgramSet[]
@@ -35,16 +35,16 @@ export interface ProgramExercise {
 }
 
 export interface Workout {
-  id: number
-  program_id: number | null
+  id: string
+  program_id: string | null
   started_at: string
   completed_at: string | null
   sets: WorkoutSet[]
 }
 
 export interface WorkoutSet {
-  id: number
-  workout_id: number
+  id: string
+  workout_id: string
   exercise_id: string
   set_number: number
   weight_kg: number | null

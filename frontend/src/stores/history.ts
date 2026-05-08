@@ -11,7 +11,7 @@ export const useHistoryStore = defineStore('history', () => {
   const hasMore = ref(true)
   const offset = ref(0)
   const loading = ref(false)
-  const programFilter = ref<number | null>(null)
+  const programFilter = ref<string | null>(null)
 
   async function loadWorkouts(reset = false) {
     if (loading.value) return
@@ -46,7 +46,7 @@ export const useHistoryStore = defineStore('history', () => {
     }
   }
 
-  function setFilter(programId: number | null) {
+  function setFilter(programId: string | null) {
     programFilter.value = programId
     loadWorkouts(true)
   }

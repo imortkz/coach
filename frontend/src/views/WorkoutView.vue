@@ -24,7 +24,7 @@ onBeforeUnmount(() => {
   activeWorkoutRef.value?.flushPendingDeletes()
 })
 
-async function onStartWorkout(programId: number) {
+async function onStartWorkout(programId: string) {
   try {
     await workoutsStore.startWorkout(programId)
   } catch {

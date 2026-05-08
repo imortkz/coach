@@ -23,8 +23,8 @@ const emit = defineEmits<{
     reps: number | null
     is_warmup: boolean
   }]
-  update: [payload: { setId: number; weight_kg: number | null; reps: number | null }]
-  delete: [setId: number]
+  update: [payload: { setId: string; weight_kg: number | null; reps: number | null }]
+  delete: [setId: string]
   removeExtra: [setNumber: number]
   removeTemplate: [payload: { exerciseId: string; setNumber: number }]
 }>()

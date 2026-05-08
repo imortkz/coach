@@ -16,7 +16,10 @@ const programsStore = useProgramsStore()
 const exercisesStore = useExercisesStore()
 
 const isEditMode = computed(() => !!route.params.id)
-const programId = computed(() => Number(route.params.id))
+// route.params.id is the UUID string from the URL — keep it as-is.
+// Casting to Number() turns the UUID into NaN, which is what the
+// previous version did and is the root cause of issue #20.
+const programId = computed(() => String(route.params.id))
 
 // Form state
 const programName = ref('')

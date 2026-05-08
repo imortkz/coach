@@ -153,7 +153,7 @@ function handleSetLogged() {
   }
 }
 
-function handleDeleteSet(setId: number) {
+function handleDeleteSet(setId: string) {
   if (!workoutsStore.activeWorkout) return
   // Optimistic removal
   const removedSet = workoutsStore.activeWorkout.sets.find((s) => s.id === setId)

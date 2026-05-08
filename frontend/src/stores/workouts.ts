@@ -33,7 +33,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
     }
   }
 
-  async function startWorkout(programId: number): Promise<Workout> {
+  async function startWorkout(programId: string): Promise<Workout> {
     loading.value = true
     error.value = null
     try {
@@ -88,7 +88,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
   }
 
   async function updateSet(
-    setId: number,
+    setId: string,
     data: { weight_kg?: number | null; reps?: number | null }
   ): Promise<WorkoutSet> {
     if (!activeWorkout.value) throw new Error('No active workout')
@@ -115,7 +115,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
     }
   }
 
-  async function deleteSet(setId: number): Promise<void> {
+  async function deleteSet(setId: string): Promise<void> {
     if (!activeWorkout.value) throw new Error('No active workout')
     error.value = null
     try {

@@ -10,26 +10,26 @@ const historyStore = useHistoryStore()
 const programsStore = useProgramsStore()
 
 // Track expanded workout IDs
-const expandedIds = ref<Set<number>>(new Set())
+const expandedIds = ref<Set<string>>(new Set())
 
 // Initial load state (vs. load-more)
 const initialLoading = ref(true)
 
 // Program name lookup
 const programNameMap = computed(() => {
-  const map = new Map<number, string>()
+  const map = new Map<string, string>()
   for (const p of programsStore.programs) {
     map.set(p.id, p.name)
   }
   return map
 })
 
-function getProgramName(programId: number | null): string {
+function getProgramName(programId: string | null): string {
   if (programId === null) return ''
   return programNameMap.value.get(programId) || t('history.unknown_program')
 }
 
-function toggleExpand(id: number) {
+function toggleExpand(id: string) {
   if (expandedIds.value.has(id)) {
     expandedIds.value.delete(id)
   } else {
@@ -39,7 +39,7 @@ function toggleExpand(id: number) {
 
 function onFilterChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  const programId = value === '' ? null : Number(value)
+  const programId = value === '' ? null : value
   expandedIds.value.clear()
   historyStore.setFilter(programId)
 }

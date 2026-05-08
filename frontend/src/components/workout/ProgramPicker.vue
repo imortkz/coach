@@ -6,7 +6,7 @@ import { useProgramsStore } from '@/stores/programs'
 const { t } = useI18n()
 
 const emit = defineEmits<{
-  select: [programId: number]
+  select: [programId: string]
 }>()
 
 const store = useProgramsStore()
