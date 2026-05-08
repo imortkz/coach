@@ -1,0 +1,53 @@
+name: Deploy
+
+# Runs after CI on master finishes successfully. The workflow_run event filter
+# below ensures we only deploy on master pushes (not on PRs that happened to
+# target master) and only when the upstream CI run was green.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+
+# At most one deploy at a time per branch — back-to-back merges to master
+# converge on the latest commit. See M008-CONTEXT for the rationale.
+concurrency:
+  group: deploy-master
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'master' &&
+      github.event.workflow_run.event == 'push'
+
+    steps:
+      - name: Load deploy SSH key into agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS host key to known_hosts
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H 46.225.110.147 >> ~/.ssh/known_hosts
+
+      - name: Pull latest master and rebuild stack
+        run: |
+          set -euo pipefail
+          ssh coach@46.225.110.147 'set -e
+            cd /home/coach/coach
+            git fetch origin
+            git reset --hard origin/master
+            docker compose -f docker-compose.prod.yml up --build -d
+          '
+
+      - name: Verify production health
+        run: |
+          set -euo pipefail
+          curl -fsS https://coach.imort.kz/api/health

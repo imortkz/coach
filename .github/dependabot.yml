@@ -1,0 +1,71 @@
+# Dependabot configuration — opens weekly update PRs across the four ecosystems
+# the project actually uses. Minor/patch bumps are grouped to avoid PR floods;
+# major bumps land as individual PRs so they get a real review.
+version: 2
+
+updates:
+  # Frontend — Vue 3 / Vite / Tailwind / etc.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Yekaterinburg
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor:
+        update-types:
+          - minor
+          - patch
+
+  # Backend — FastAPI / Beanie / pytest, declared in backend/pyproject.toml
+  # (uv-managed; dependabot reads PEP 621 dependencies and dev groups).
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Yekaterinburg
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor:
+        update-types:
+          - minor
+          - patch
+
+  # Backend Dockerfile — base image bumps (python:3.13-*).
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Yekaterinburg
+    open-pull-requests-limit: 3
+
+  # Nginx Dockerfile — base image bumps (nginx:alpine, node:20 builder, etc.).
+  - package-ecosystem: docker
+    directory: /nginx
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Yekaterinburg
+    open-pull-requests-limit: 3
+
+  # GitHub Actions used in .github/workflows/*.yml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Yekaterinburg
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor:
+        update-types:
+          - minor
+          - patch
