@@ -17,9 +17,22 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# Stage 2: nginx with built SPA + reverse proxy config
+# Stage 2: nginx with built SPA + runtime template selection (HTTP-only vs HTTPS)
 FROM nginx:1.28-alpine
+
+# envsubst (gettext) for ${DOMAIN} substitution at startup
+RUN apk add --no-cache gettext
+
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
-COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+COPY nginx/templates/ /etc/nginx/templates/
+COPY nginx/entrypoint.sh /coach-entrypoint.sh
+RUN chmod +x /coach-entrypoint.sh
+
+# Default conf is generated from templates by entrypoint at startup.
+# Remove any stock conf so nginx doesn't try to load both.
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+EXPOSE 80 443
+
+# Pick HTTP-only or HTTPS template based on cert presence, then exec nginx.
+ENTRYPOINT ["/coach-entrypoint.sh"]

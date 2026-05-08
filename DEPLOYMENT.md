@@ -86,8 +86,10 @@ Required values in `.env`:
 | `JWT_SECRET` | Run: `python3 -c "import secrets; print(secrets.token_hex(32))"` |
 | `TELEGRAM_BOT_TOKEN` | From @BotFather `/newbot` |
 | `VITE_TELEGRAM_BOT_NAME` | Bot username without `@` |
+| `DOMAIN` | Your domain, e.g. `coach.example.com` (DNS A-record must point at the VPS public IP) |
+| `ACME_EMAIL` | Your email — Let's Encrypt sends renewal failure notices here |
 
-### Step 2 — Build and start
+### Step 2 — Build and start (HTTP-only bootstrap)
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build -d
@@ -95,33 +97,130 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 This will:
 1. Build the FastAPI backend image
-2. Build the nginx image (which compiles the Vue SPA with your bot name baked in)
+2. Build the nginx image (which compiles the Vue SPA with your bot name baked in and copies the runtime templates + entrypoint)
 3. Start MongoDB with a named volume for data persistence
 4. Start the backend (waits for MongoDB health check)
-5. Start nginx on port 80
+5. Start nginx on port 80 + 443 — **in HTTP-only bootstrap mode**, because no SSL cert exists yet
+6. Start certbot in renewal-loop mode (idle until first cert is issued)
 
-First-run: the backend automatically seeds 50 exercises into the database on startup.
+First-run: the backend automatically seeds ~150 exercises into the database on startup.
 
-### Step 3 — Verify
+The site is reachable at `http://${DOMAIN}` over plain HTTP. Telegram auth will not work yet — Telegram requires HTTPS. Issue a Let's Encrypt cert next.
+
+### Step 3 — SSL/HTTPS Setup with Let's Encrypt
+
+This is the cert-bootstrap flow. Run it once on first deploy. Renewals after that happen
+automatically every 12h via the `certbot` service in the compose stack.
+
+> **Anchor:** `ssl-https-setup` — referenced from the Telegram bot setup section above.
+
+#### 3.1 — Verify DNS resolves to this VPS
+
+ACME's HTTP-01 challenge requires Let's Encrypt to reach `http://${DOMAIN}/.well-known/acme-challenge/...` on **your** VPS. Confirm DNS first:
 
 ```bash
-# Check all containers are running
-docker compose -f docker-compose.prod.yml ps
-
-# Check backend health
-curl http://localhost/api/health
-# Expected: {"status":"ok","database":"connected"}
-
-# View backend logs
-docker compose -f docker-compose.prod.yml logs backend
-
-# View nginx logs
-docker compose -f docker-compose.prod.yml logs nginx
+dig +short "${DOMAIN}"
+# Expected: the public IP of this VPS. If it differs, fix the DNS A-record and wait
+# 5–30 minutes for propagation before continuing.
 ```
 
-Open `https://<your-domain>` in a browser — you should see the GymCoach login page.
+#### 3.2 — Sanity-check the ACME challenge surface
 
-### Step 4 — Login
+While nginx is in HTTP-only bootstrap mode, the `/.well-known/acme-challenge/` location is already wired and served from the `certbot_www` volume. Quick check:
+
+```bash
+curl -I "http://${DOMAIN}/.well-known/acme-challenge/test"
+# Expected: HTTP/1.1 404 Not Found  (location resolves; file just doesn't exist yet)
+```
+
+If you get a 5xx or connection refused, fix that before issuing certs — staging or prod, you'll just burn the rate-limit otherwise.
+
+#### 3.3 — Issue a STAGING cert first
+
+Let's Encrypt rate-limits production cert issuance to 5 failures per domain per hour. Always validate the pipeline against staging first:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm certbot \
+  certonly \
+  --webroot -w /var/www/certbot \
+  --staging \
+  -d "${DOMAIN}" \
+  --email "${ACME_EMAIL}" \
+  --agree-tos --no-eff-email \
+  --non-interactive
+```
+
+A staging cert will be issued (untrusted by browsers but proves the flow works). If you see "Successfully received certificate" — proceed.
+
+If it fails — read the error, fix DNS / nginx / firewall, and re-run staging until it succeeds.
+
+#### 3.4 — Delete the staging cert and request a production cert
+
+```bash
+# Drop the staging cert so the prod issuance writes cleanly to the same path:
+docker compose -f docker-compose.prod.yml run --rm certbot \
+  delete --cert-name "${DOMAIN}" --non-interactive
+
+# Issue the real cert:
+docker compose -f docker-compose.prod.yml run --rm certbot \
+  certonly \
+  --webroot -w /var/www/certbot \
+  -d "${DOMAIN}" \
+  --email "${ACME_EMAIL}" \
+  --agree-tos --no-eff-email \
+  --non-interactive
+```
+
+#### 3.5 — Reload nginx so it picks up the new cert
+
+The nginx entrypoint chooses HTTP-only or HTTPS template based on cert presence at startup, so a simple restart is enough:
+
+```bash
+docker compose -f docker-compose.prod.yml restart nginx
+```
+
+Logs should show: `[nginx-entrypoint] SSL cert found at /etc/letsencrypt/live/<DOMAIN>/fullchain.pem — serving HTTPS for DOMAIN=<DOMAIN>`.
+
+#### 3.6 — Register the domain with @BotFather
+
+Telegram's Login Widget only loads on a domain that's registered with the bot:
+
+1. In Telegram, talk to `@BotFather`
+2. `/setdomain` → pick your bot → enter `${DOMAIN}` (no `https://` prefix)
+
+#### 3.7 — Verify renewal works without actually renewing
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm certbot \
+  renew --dry-run
+# Exit code 0 + "all renewals succeeded" — you're set.
+```
+
+The `certbot` service in the running stack already runs `certbot renew` on a 12-hour loop; on actual renewal it touches `/var/www/certbot/.cert-renewed`, and nginx watches for that marker and reloads itself within 5 minutes.
+
+### Step 4 — Verify the live stack
+
+```bash
+# All containers running:
+docker compose -f docker-compose.prod.yml ps
+
+# Backend health through HTTPS:
+curl -I "https://${DOMAIN}/api/health"
+# Expected: HTTP/2 200
+
+# HTTP→HTTPS redirect in place:
+curl -I "http://${DOMAIN}"
+# Expected: HTTP/1.1 301 Moved Permanently  Location: https://${DOMAIN}/
+
+# Logs:
+docker compose -f docker-compose.prod.yml logs backend
+docker compose -f docker-compose.prod.yml logs nginx
+docker compose -f docker-compose.prod.yml logs certbot
+```
+
+Open `https://${DOMAIN}` in a browser — you should see the GymCoach login page with a valid TLS padlock.
+
+### Step 5 — Login
 
 Click "Log in with Telegram" on the login page. The Telegram popup will open. After
 authentication, you'll be redirected to the app with a 1-year JWT session.

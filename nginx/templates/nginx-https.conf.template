@@ -1,0 +1,62 @@
+# HTTPS mode — used in production after Let's Encrypt has issued a cert
+# for ${DOMAIN} (cert files exist at /etc/letsencrypt/live/${DOMAIN}/).
+#
+# - HTTP server (port 80) keeps serving /.well-known/acme-challenge/ for renewals
+#   and 301-redirects everything else to HTTPS.
+# - HTTPS server (port 443) serves the SPA and proxies /api/* to backend.
+
+# HTTP server — ACME challenge surface for renewals + redirect to HTTPS.
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # ACME challenge endpoint (used during cert renewal too).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+    }
+
+    # Everything else: 301 to HTTPS.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS server — main app surface.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    # Modern, broadly-compatible TLS defaults.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # HSTS — once HTTPS is stable, tell browsers to always use it.
+    # 6 months; revisit before considering preload.
+    add_header Strict-Transport-Security "max-age=15768000" always;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

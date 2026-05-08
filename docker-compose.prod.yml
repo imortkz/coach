@@ -1,12 +1,13 @@
-# docker-compose.prod.yml — Production (VPS, bare IP)
-# Telegram auth is ENABLED (DEV_MODE=false). JWT_SECRET must be set in .env.
+# docker-compose.prod.yml — Production (VPS, registered domain, HTTPS)
+# Telegram auth is ENABLED (DEV_MODE=false). JWT_SECRET, TELEGRAM_BOT_TOKEN, DOMAIN must be set in .env.
 # MongoDB port is NOT exposed to the host.
 #
 # Usage (on VPS):
-#   cp .env.example .env && vim .env  # fill in JWT_SECRET, TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_BOT_NAME
+#   cp .env.example .env && vim .env  # fill in JWT_SECRET, TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_BOT_NAME, DOMAIN, ACME_EMAIL
 #   docker compose -f docker-compose.prod.yml up --build -d
 #
-# First-run: exercise seed data is inserted automatically on backend startup.
+# First-run: nginx starts in HTTP-only bootstrap mode (no cert yet), backend seeds exercises.
+# Then issue a Let's Encrypt cert via the certbot service — see DEPLOYMENT.md "SSL setup".
 
 services:
 
@@ -49,12 +50,46 @@ services:
       args:
         VITE_TELEGRAM_BOT_NAME: ${VITE_TELEGRAM_BOT_NAME}
     restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # certbot writes ACME challenge files here; nginx reads them.
+      - certbot_www:/var/www/certbot
+      # Let's Encrypt cert files are read by nginx (read-only).
+      - letsencrypt:/etc/letsencrypt:ro
     networks:
       - gymcoach
     depends_on:
       - backend
+
+  # Certbot — issues and renews Let's Encrypt certs.
+  # First-issue and renewals are run via `docker compose run --rm certbot ...`
+  # (manual command flow in DEPLOYMENT.md). The container itself stays up only
+  # to host the renewal cron.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Default entrypoint is overridden so the container stays up running a renewal loop.
+    # Renews every 12 hours (certbot itself only renews near expiry); on success,
+    # touches a marker file that nginx watches to reload itself.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        trap 'exit 0' TERM
+        while :; do
+          certbot renew \
+            --webroot -w /var/www/certbot \
+            --deploy-hook 'touch /var/www/certbot/.cert-renewed' \
+            --quiet || true
+          sleep 12h &
+          wait $${!}
+        done
 
 networks:
   gymcoach:
@@ -62,4 +97,8 @@ networks:
 
 volumes:
   mongodb_data:
+    driver: local
+  letsencrypt:
+    driver: local
+  certbot_www:
     driver: local

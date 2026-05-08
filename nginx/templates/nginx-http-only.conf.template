@@ -1,0 +1,40 @@
+# HTTP-only mode — used during bootstrap (before first cert is issued)
+# and as the dev compose default (no DOMAIN set, no cert volume mounted).
+#
+# Serves the SPA + API over plain HTTP and provides a /.well-known/acme-challenge/
+# endpoint that points at the certbot webroot, so certbot can complete the
+# HTTP-01 challenge to issue the first cert.
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # ACME HTTP-01 challenge — certbot writes challenge files into
+    # /var/www/certbot, served from here over HTTP. Works even before
+    # any cert exists; harmless when no challenge is in flight (404).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+    }
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # API reverse proxy — strip /api prefix is NOT done; FastAPI handles /api/* paths
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Support long-running requests (workout logging)
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    # SPA fallback — serve index.html for all client-side routes
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
