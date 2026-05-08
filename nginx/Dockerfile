@@ -4,7 +4,7 @@
 # so both frontend/ and nginx/ are accessible.
 
 # Stage 1: build the Vue frontend
-FROM node:20-slim AS frontend-build
+FROM node:26-slim AS frontend-build
 
 ARG VITE_TELEGRAM_BOT_NAME
 ARG VITE_DEV_MODE
