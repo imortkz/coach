@@ -250,15 +250,114 @@ Data is **lost** only if you explicitly remove the volume:
 docker compose -f docker-compose.prod.yml down -v
 ```
 
-### Manual backup
+### Backup & Restore
+
+Automated backups land in `/var/backups/gymcoach/` on the VPS host:
+
+- `hourly/` — one archive per hour, retained for `BACKUP_HOURLY_KEEP` hours
+  (default 48). Pruning runs after every backup write.
+- `daily/` — the hourly archive written at midnight UTC is copied here on
+  promotion, retained for `BACKUP_DAILY_KEEP` days (default 30).
+
+The `backup` sidecar service runs the loop. Schedule and retention are
+configurable in `.env`. All times are UTC inside the container — daily
+promotion happens at 00:00 UTC, which translates to local TZ accordingly
+(05:00 YEKT, 03:00 CET, etc.).
+
+#### One-time setup
+
+Create the host backup directory before bringing the stack up the first
+time:
 
 ```bash
-# Dump to local file
-docker exec gymcoach_mongodb_1 mongodump --db gymcoach --archive | gzip > gymcoach_backup_$(date +%Y%m%d).gz
-
-# Restore
-gunzip -c gymcoach_backup_20260101.gz | docker exec -i gymcoach_mongodb_1 mongorestore --archive --db gymcoach
+sudo mkdir -p /var/backups/gymcoach
+sudo chown $(whoami):$(whoami) /var/backups/gymcoach
 ```
+
+Then start the stack normally:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+#### Verifying backups
+
+```bash
+# Confirm the backup container is running
+docker compose -f docker-compose.prod.yml ps backup
+
+# Tail the backup loop's output
+docker compose -f docker-compose.prod.yml logs -f backup
+
+# Inspect what's on disk
+ls -lh /var/backups/gymcoach/hourly/
+ls -lh /var/backups/gymcoach/daily/
+```
+
+A fresh stack produces its first archive within ~1 minute of `up -d`
+(the loop runs an immediate backup on start), then continues hourly.
+
+#### Restoring the entire database
+
+`backup/restore-full.sh` reverts the live `gymcoach` database to the
+state captured in the archive. It uses `--drop` per collection, so any
+documents added after the archive snapshot are removed.
+
+```bash
+# From the repo root on the VPS
+bash backup/restore-full.sh /var/backups/gymcoach/hourly/<archive>.archive.gz
+```
+
+The script confirms before proceeding. Verify after:
+
+```bash
+docker compose -f docker-compose.prod.yml exec mongodb \
+  mongosh gymcoach --eval 'db.exercises.countDocuments()'
+```
+
+#### Restoring a single user's data
+
+`backup/restore-user.sh` restores one user's documents (programs,
+workouts, settings, user profile) without touching other users. It
+restores the archive into a sandbox database side-by-side with
+production, upserts the target user's documents into live, and drops
+the sandbox.
+
+```bash
+bash backup/restore-user.sh /var/backups/gymcoach/hourly/<archive>.archive.gz <user_id>
+```
+
+`<user_id>` is the value of the `user_id` field on the user's documents
+(see `users` collection — it's the field that joins everything in that
+user's namespace).
+
+The script asks for confirmation. Documents that exist in the live DB
+but were not present in the archive (i.e. created after the snapshot)
+are NOT removed — only the archived versions are upserted on top.
+
+#### Off-site copy (manual, suggested)
+
+Backup archives sit on the same VPS as the data they protect. For a
+real DR posture you want at least one off-site copy. The simplest
+pattern is a host cron job using `rclone`:
+
+```bash
+# /etc/cron.d/gymcoach-backup-offsite (example)
+30 * * * * coach rclone sync /var/backups/gymcoach remote:gymcoach-backups
+```
+
+Configure `rclone` for your bucket of choice (S3, R2, Backblaze, etc.)
+and pick a cadence that suits the recovery window you care about.
+Wiring is intentionally outside the stack so the backup loop has zero
+external dependencies.
+
+#### Migrating from the legacy manual backup
+
+If you still have archives from the old manual `mongodump` one-liner,
+they are compatible with `restore-full.sh` — the file format is
+identical (`mongodump --gzip --archive`). Just copy them into
+`/var/backups/gymcoach/hourly/` (or anywhere accessible) and pass the
+path to the script.
 
 ---
 
