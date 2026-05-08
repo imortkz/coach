@@ -18,7 +18,7 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString()
 }
 
-async function handleDelete(id: number, name: string) {
+async function handleDelete(id: string, name: string) {
   if (!confirm(t('programs.delete_confirm', { name }))) return
   try {
     await store.deleteProgram(id)

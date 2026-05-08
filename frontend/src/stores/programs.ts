@@ -40,7 +40,7 @@ export const useProgramsStore = defineStore('programs', () => {
     }
   }
 
-  async function fetchProgram(id: number): Promise<Program> {
+  async function fetchProgram(id: string): Promise<Program> {
     const res = await apiFetch(`${API_BASE}/${id}`)
     if (!res.ok) throw new Error(`Failed to fetch program: ${res.statusText}`)
     return await res.json()
@@ -62,7 +62,7 @@ export const useProgramsStore = defineStore('programs', () => {
     return created
   }
 
-  async function updateProgram(id: number, data: ProgramCreatePayload): Promise<Program> {
+  async function updateProgram(id: string, data: ProgramCreatePayload): Promise<Program> {
     error.value = null
     const res = await apiFetch(`${API_BASE}/${id}`, {
       method: 'PUT',
@@ -78,7 +78,7 @@ export const useProgramsStore = defineStore('programs', () => {
     return updated
   }
 
-  async function deleteProgram(id: number): Promise<void> {
+  async function deleteProgram(id: string): Promise<void> {
     error.value = null
     const res = await apiFetch(`${API_BASE}/${id}`, { method: 'DELETE' })
     if (!res.ok) {

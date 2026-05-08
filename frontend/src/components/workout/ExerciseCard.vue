@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   addSet: [exerciseId: string]
   setLogged: []
-  deleteSet: [setId: number]
+  deleteSet: [setId: string]
   removeExtra: [exerciseId: string, setNumber: number]
   removeExercise: [exerciseId: string]
   removeTemplate: [payload: { exerciseId: string; setNumber: number }]
@@ -131,7 +131,7 @@ async function handleComplete(payload: {
   }
 }
 
-async function handleUpdate(payload: { setId: number; weight_kg: number | null; reps: number | null }) {
+async function handleUpdate(payload: { setId: string; weight_kg: number | null; reps: number | null }) {
   try {
     await workoutsStore.updateSet(payload.setId, {
       weight_kg: payload.weight_kg,
@@ -142,7 +142,7 @@ async function handleUpdate(payload: { setId: number; weight_kg: number | null; 
   }
 }
 
-function handleDeleteSet(setId: number) {
+function handleDeleteSet(setId: string) {
   emit('deleteSet', setId)
 }
 
