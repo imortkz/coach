@@ -1,0 +1,52 @@
+export default {
+  nav: {
+    exercises: 'Упражнения',
+    programs: 'Программы',
+    workout: 'Тренировка',
+    history: 'История',
+    settings: 'Настройки',
+  },
+  muscle_groups: {
+    Chest: 'Грудь',
+    Back: 'Спина',
+    Shoulders: 'Плечи',
+    Arms: 'Руки',
+    Legs: 'Ноги',
+    Core: 'Пресс',
+  },
+  exercises: {
+    title: 'Упражнения',
+    search_placeholder: 'Поиск упражнений...',
+    all_equipment: 'Всё оборудование',
+    loading: 'Загрузка упражнений...',
+    try_again: 'Попробовать снова',
+    empty_title: 'Упражнения не найдены.',
+    empty_hint: 'Попробуйте изменить поиск или фильтры.',
+    add_custom_title: 'Добавить упражнение',
+    name_placeholder: 'Название упражнения',
+    custom_badge: 'Своё',
+    add: 'Добавить',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+  },
+  workout: {
+    title: 'Тренировка',
+    loading: 'Загрузка...',
+  },
+  history: {
+    title: 'История',
+    loading: 'Загрузка тренировок...',
+    empty: 'Пока нет завершённых тренировок.',
+    empty_hint: 'Начните тренировку на странице программ!',
+  },
+  programs: {
+    title: 'Программы',
+  },
+  settings: {
+    title: 'Настройки',
+    language_label: 'Язык',
+    language_en: 'English',
+    language_ru: 'Русский',
+    language_saved: 'Сохранено',
+  },
+}

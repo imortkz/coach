@@ -1,0 +1,66 @@
+# docker-compose.yml — Local development
+# Starts nginx (with built Vue SPA) + FastAPI backend + MongoDB
+# DEV_MODE=true bypasses Telegram auth so the app works without a bot.
+#
+# Usage: docker compose up --build
+#
+# All services communicate on the internal "gymcoach" network.
+# MongoDB port 27017 is exposed to the host for local inspection (Compass/mongosh).
+
+services:
+
+  mongodb:
+    image: mongo:8.0
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - gymcoach
+    ports:
+      - "27018:27017"      # exposed for local dev tools (Compass, mongosh); uses 27018 to avoid conflict with local MongoDB
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DB_NAME: gymcoach
+      DEV_MODE: "true"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    networks:
+      - gymcoach
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        VITE_TELEGRAM_BOT_NAME: ${VITE_TELEGRAM_BOT_NAME:-}
+        VITE_DEV_MODE: "true"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - gymcoach
+    depends_on:
+      - backend
+
+networks:
+  gymcoach:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local

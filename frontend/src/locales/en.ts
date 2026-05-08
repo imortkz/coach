@@ -1,0 +1,52 @@
+export default {
+  nav: {
+    exercises: 'Exercises',
+    programs: 'Programs',
+    workout: 'Workout',
+    history: 'History',
+    settings: 'Settings',
+  },
+  muscle_groups: {
+    Chest: 'Chest',
+    Back: 'Back',
+    Shoulders: 'Shoulders',
+    Arms: 'Arms',
+    Legs: 'Legs',
+    Core: 'Core',
+  },
+  exercises: {
+    title: 'Exercises',
+    search_placeholder: 'Search exercises...',
+    all_equipment: 'All Equipment',
+    loading: 'Loading exercises...',
+    try_again: 'Try again',
+    empty_title: 'No exercises found.',
+    empty_hint: 'Try adjusting your search or filters.',
+    add_custom_title: 'Add custom exercise',
+    name_placeholder: 'Exercise name',
+    custom_badge: 'Custom',
+    add: 'Add',
+    save: 'Save',
+    cancel: 'Cancel',
+  },
+  workout: {
+    title: 'Workout',
+    loading: 'Loading...',
+  },
+  history: {
+    title: 'History',
+    loading: 'Loading workouts...',
+    empty: 'No completed workouts yet.',
+    empty_hint: 'Start a workout from the Programs page!',
+  },
+  programs: {
+    title: 'Programs',
+  },
+  settings: {
+    title: 'Settings',
+    language_label: 'Language',
+    language_en: 'English',
+    language_ru: 'Russian',
+    language_saved: 'Saved',
+  },
+}
