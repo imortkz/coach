@@ -90,7 +90,7 @@ onUnmounted(() => {
 
 const timerDisabled = computed(() => program.value?.rest_timer_disabled ?? false)
 
-const removedExerciseIds = ref(new Set<number>())
+const removedExerciseIds = ref(new Set<string>())
 const skippedTemplateSets = ref(new Set<string>())
 
 const orderedExercises = computed<ProgramExercise[]>(() => {
@@ -101,8 +101,8 @@ const orderedExercises = computed<ProgramExercise[]>(() => {
 })
 
 // Group logged sets by exercise_id
-const setsByExercise = computed<Record<number, WorkoutSet[]>>(() => {
-  const grouped: Record<number, WorkoutSet[]> = {}
+const setsByExercise = computed<Record<string, WorkoutSet[]>>(() => {
+  const grouped: Record<string, WorkoutSet[]> = {}
   if (!workoutsStore.activeWorkout) return grouped
   for (const s of workoutsStore.activeWorkout.sets) {
     if (!grouped[s.exercise_id]) grouped[s.exercise_id] = []
@@ -111,15 +111,15 @@ const setsByExercise = computed<Record<number, WorkoutSet[]>>(() => {
   return grouped
 })
 
-function getPreFillSets(exerciseId: number): PreFillSet[] {
+function getPreFillSets(exerciseId: string): PreFillSet[] {
   return workoutsStore.preFill[exerciseId] ?? []
 }
 
-function getLoggedSets(exerciseId: number): WorkoutSet[] {
+function getLoggedSets(exerciseId: string): WorkoutSet[] {
   return setsByExercise.value[exerciseId] ?? []
 }
 
-function getExtraSetNumbers(exerciseId: number): number[] {
+function getExtraSetNumbers(exerciseId: string): number[] {
   return extraSets.value
     .filter((e) => e.exerciseId === exerciseId)
     .map((e) => e.setNumber)
@@ -127,11 +127,11 @@ function getExtraSetNumbers(exerciseId: number): number[] {
 
 // Extra sets added by user (not yet logged, beyond template)
 const extraSets = ref<Array<{
-  exerciseId: number
+  exerciseId: string
   setNumber: number
 }>>([])
 
-function handleAddSet(exerciseId: number) {
+function handleAddSet(exerciseId: string) {
   const loggedNums = getLoggedSets(exerciseId).map((s) => s.set_number)
   const pe = orderedExercises.value.find((e) => e.exercise_id === exerciseId)
   const templateNums = pe ? pe.sets.map((s) => s.set_number) : []
@@ -175,13 +175,13 @@ function handleDeleteSet(setId: number) {
   )
 }
 
-function handleRemoveExtra(exerciseId: number, setNumber: number) {
+function handleRemoveExtra(exerciseId: string, setNumber: number) {
   extraSets.value = extraSets.value.filter(
     (e) => !(e.exerciseId === exerciseId && e.setNumber === setNumber)
   )
 }
 
-function handleRemoveTemplate({ exerciseId, setNumber }: { exerciseId: number; setNumber: number }) {
+function handleRemoveTemplate({ exerciseId, setNumber }: { exerciseId: string; setNumber: number }) {
   const key = `${exerciseId}:${setNumber}`
   skippedTemplateSets.value.add(key)
   // Trigger reactivity: replace the set with a new instance
@@ -200,7 +200,7 @@ function handleRemoveTemplate({ exerciseId, setNumber }: { exerciseId: number; s
   )
 }
 
-function handleRemoveExercise(exerciseId: number) {
+function handleRemoveExercise(exerciseId: string) {
   if (!workoutsStore.activeWorkout) return
   removedExerciseIds.value.add(exerciseId)
   workoutsStore.deleteExerciseSets(exerciseId)

@@ -1,5 +1,11 @@
 # GymCoach — Deployment Guide
 
+> **Day-to-day deploys are automated.** Pushes to `master` that pass CI trigger
+> [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which `ssh`es
+> into the VPS and rebuilds the stack. The manual flow below is the
+> first-bootstrap path (Docker install, Telegram bot, SSL cert issuance) and
+> the recovery path if automated deploy is unavailable.
+
 ## Prerequisites
 
 ### 1. Docker and Docker Compose

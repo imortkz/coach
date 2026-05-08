@@ -117,7 +117,7 @@ const suggestionSetNumber = computed<number | null>(() => {
 })
 
 async function handleComplete(payload: {
-  exercise_id: number
+  exercise_id: string
   set_number: number
   weight_kg: number | null
   reps: number | null

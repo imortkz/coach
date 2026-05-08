@@ -3,8 +3,14 @@ import { ref } from 'vue'
 import { apiFetch } from '@/lib/apiFetch'
 import i18n from '@/plugins/i18n'
 
+export type Language = 'en' | 'ru'
+
+function isLanguage(v: unknown): v is Language {
+  return v === 'en' || v === 'ru'
+}
+
 export const useSettingsStore = defineStore('settings', () => {
-  const language = ref<string>('en')
+  const language = ref<Language>('en')
 
   async function loadLanguage(): Promise<void> {
     try {
@@ -20,7 +26,7 @@ export const useSettingsStore = defineStore('settings', () => {
         return
       }
       const data = await res.json()
-      const lang = data.value ?? 'en'
+      const lang: Language = isLanguage(data.value) ? data.value : 'en'
       language.value = lang
       i18n.global.locale.value = lang
     } catch (err) {
@@ -28,7 +34,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  async function setLanguage(lang: string): Promise<void> {
+  async function setLanguage(lang: Language): Promise<void> {
     language.value = lang
     i18n.global.locale.value = lang
     try {

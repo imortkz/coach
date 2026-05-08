@@ -28,7 +28,7 @@ export interface Program {
 export interface ProgramExercise {
   id: number
   program_id: number
-  exercise_id: number
+  exercise_id: string
   order: number
   sets: ProgramSet[]
   exercise?: Exercise
@@ -45,7 +45,7 @@ export interface Workout {
 export interface WorkoutSet {
   id: number
   workout_id: number
-  exercise_id: number
+  exercise_id: string
   set_number: number
   weight_kg: number | null
   reps: number | null
@@ -69,8 +69,8 @@ export interface SuggestionInfo {
 }
 
 export interface WorkoutStartResponse extends Workout {
-  pre_fill: Record<number, PreFillSet[]>
-  suggestions: Record<number, SuggestionInfo>
+  pre_fill: Record<string, PreFillSet[]>
+  suggestions: Record<string, SuggestionInfo>
 }
 
 export interface ExerciseSessionSet {
