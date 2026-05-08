@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useHistoryStore } from '@/stores/history'
 import { useProgramsStore } from '@/stores/programs'
 import WorkoutCard from '@/components/history/WorkoutCard.vue'
 
+const { t } = useI18n()
 const historyStore = useHistoryStore()
 const programsStore = useProgramsStore()
 
@@ -24,7 +26,7 @@ const programNameMap = computed(() => {
 
 function getProgramName(programId: number | null): string {
   if (programId === null) return ''
-  return programNameMap.value.get(programId) || 'Unknown Program'
+  return programNameMap.value.get(programId) || t('history.unknown_program')
 }
 
 function toggleExpand(id: number) {
@@ -60,7 +62,7 @@ onMounted(async () => {
   <div>
     <!-- Header -->
     <div class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-4">History</h1>
+      <h1 class="text-2xl font-bold text-gray-900 mb-4">{{ t('history.title') }}</h1>
 
       <!-- Program filter -->
       <select
@@ -68,7 +70,7 @@ onMounted(async () => {
         class="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700"
         @change="onFilterChange"
       >
-        <option value="">All Programs</option>
+        <option value="">{{ t('history.all_programs') }}</option>
         <option
           v-for="program in programsStore.programs"
           :key="program.id"
@@ -82,13 +84,13 @@ onMounted(async () => {
     <!-- Loading state (initial load) -->
     <div v-if="initialLoading" class="flex items-center justify-center py-12">
       <div class="h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <span class="ml-3 text-sm text-gray-500">Loading workouts...</span>
+      <span class="ml-3 text-sm text-gray-500">{{ t('history.loading') }}</span>
     </div>
 
     <!-- Empty state -->
     <div v-else-if="historyStore.workouts.length === 0" class="text-center py-12">
-      <p class="text-gray-500 text-sm">No completed workouts yet.</p>
-      <p class="text-gray-400 text-xs mt-1">Start a workout from the Programs page!</p>
+      <p class="text-gray-500 text-sm">{{ t('history.empty') }}</p>
+      <p class="text-gray-400 text-xs mt-1">{{ t('history.empty_hint') }}</p>
     </div>
 
     <!-- Workout list -->
@@ -109,7 +111,7 @@ onMounted(async () => {
           :disabled="historyStore.loading"
           @click="loadMore"
         >
-          {{ historyStore.loading ? 'Loading...' : 'Load more' }}
+          {{ historyStore.loading ? t('history.loading_more') : t('history.load_more') }}
         </button>
       </div>
     </div>

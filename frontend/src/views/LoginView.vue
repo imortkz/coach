@@ -5,14 +5,14 @@
       <div class="text-center mb-10">
         <div class="text-5xl mb-3">🏋️</div>
         <h1 class="text-2xl font-bold text-white tracking-tight">GymCoach</h1>
-        <p class="text-gray-400 text-sm mt-1">Your personal training companion</p>
+        <p class="text-gray-400 text-sm mt-1">{{ t('login.tagline') }}</p>
       </div>
 
       <!-- Card -->
       <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
-        <h2 class="text-white font-semibold text-lg mb-1">Sign in</h2>
+        <h2 class="text-white font-semibold text-lg mb-1">{{ t('login.sign_in') }}</h2>
         <p class="text-gray-400 text-sm mb-6">
-          Connect with your Telegram account to get started.
+          {{ t('login.telegram_subtitle') }}
         </p>
 
         <!-- Error message -->
@@ -30,20 +30,20 @@
 
         <!-- Dev mode login -->
         <div v-if="isDev" class="mt-4 pt-4 border-t border-gray-800">
-          <p class="text-center text-xs text-gray-500 mb-3">Dev mode — no Telegram bot required</p>
+          <p class="text-center text-xs text-gray-500 mb-3">{{ t('login.dev_mode_hint') }}</p>
           <button
             @click="handleDevLogin"
             :disabled="auth.loading"
             class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
           >
-            <span v-if="auth.loading">Signing in…</span>
-            <span v-else>Continue as Dev User</span>
+            <span v-if="auth.loading">{{ t('login.signing_in') }}</span>
+            <span v-else>{{ t('login.continue_as_dev') }}</span>
           </button>
         </div>
       </div>
 
       <p class="text-center text-gray-600 text-xs mt-6">
-        Single-user app. Your data stays private.
+        {{ t('login.privacy_note') }}
       </p>
     </div>
   </div>
@@ -51,9 +51,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
 const widgetContainer = ref<HTMLElement | null>(null)
