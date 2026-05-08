@@ -9,6 +9,7 @@ const navItems = [
   { to: '/programs', label: 'programs', icon: 'clipboard' },
   { to: '/workout', label: 'workout', icon: 'play' },
   { to: '/history', label: 'history', icon: 'clock' },
+  { to: '/report', label: 'report', icon: 'chart' },
   { to: '/settings', label: 'settings', icon: 'gear' },
 ] as const
 </script>
@@ -66,6 +67,10 @@ const navItems = [
           <!-- Clock icon -->
           <svg v-else-if="item.icon === 'clock'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <!-- Chart icon -->
+          <svg v-else-if="item.icon === 'chart'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 4 4 5-7" />
           </svg>
           <!-- Gear icon -->
           <svg v-else-if="item.icon === 'gear'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

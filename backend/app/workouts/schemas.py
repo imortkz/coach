@@ -107,3 +107,31 @@ class SettingRead(BaseModel):
 
 class SettingUpdate(BaseModel):
     value: str
+
+
+# --- Report schemas (M005) ---
+
+
+class ReportVolumeEntry(BaseModel):
+    week: str
+    muscle_group: str
+    volume_kg: float
+
+
+class ReportFrequencyEntry(BaseModel):
+    week: str
+    count: int
+
+
+class ReportPersonalRecord(BaseModel):
+    exercise_name: str
+    best_weight_in_period: float
+    previous_best: float | None
+    is_new_pr: bool
+
+
+class ReportResponse(BaseModel):
+    weeks: list[str]
+    volume_by_week: list[ReportVolumeEntry]
+    frequency_by_week: list[ReportFrequencyEntry]
+    personal_records: list[ReportPersonalRecord]
