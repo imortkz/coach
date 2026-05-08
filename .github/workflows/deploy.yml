@@ -15,6 +15,11 @@ concurrency:
   group: deploy-master
   cancel-in-progress: true
 
+# The deploy job authenticates to the VPS via the SSH key in secrets, not
+# via GITHUB_TOKEN, so the workflow itself only needs read access.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy to VPS
@@ -26,7 +31,7 @@ jobs:
 
     steps:
       - name: Load deploy SSH key into agent
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
@@ -50,4 +55,23 @@ jobs:
       - name: Verify production health
         run: |
           set -euo pipefail
-          curl -fsS https://coach.imort.kz/api/health
+          # Backend may need a few seconds to come up after recreate; poll until
+          # /api/health returns 200 or we hit the timeout.
+          url="https://coach.imort.kz/api/health"
+          deadline=$(( $(date +%s) + 60 ))
+          attempt=0
+          while :; do
+            attempt=$(( attempt + 1 ))
+            if body=$(curl -fsS --max-time 5 "$url"); then
+              echo "health ok on attempt ${attempt}: ${body}"
+              exit 0
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "health check failed after ${attempt} attempts (60s)"
+              echo "last response (verbose):"
+              curl -sS -o /dev/stderr -w 'HTTP %{http_code}\n' "$url" || true
+              exit 1
+            fi
+            echo "attempt ${attempt}: not ready yet, retrying in 3s..."
+            sleep 3
+          done
