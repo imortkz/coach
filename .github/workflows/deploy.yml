@@ -50,4 +50,23 @@ jobs:
       - name: Verify production health
         run: |
           set -euo pipefail
-          curl -fsS https://coach.imort.kz/api/health
+          # Backend may need a few seconds to come up after recreate; poll until
+          # /api/health returns 200 or we hit the timeout.
+          url="https://coach.imort.kz/api/health"
+          deadline=$(( $(date +%s) + 60 ))
+          attempt=0
+          while :; do
+            attempt=$(( attempt + 1 ))
+            if body=$(curl -fsS --max-time 5 "$url"); then
+              echo "health ok on attempt ${attempt}: ${body}"
+              exit 0
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "health check failed after ${attempt} attempts (60s)"
+              echo "last response (verbose):"
+              curl -sS -o /dev/stderr -w 'HTTP %{http_code}\n' "$url" || true
+              exit 1
+            fi
+            echo "attempt ${attempt}: not ready yet, retrying in 3s..."
+            sleep 3
+          done
