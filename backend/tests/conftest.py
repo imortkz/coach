@@ -1,4 +1,4 @@
-"""Shared test fixtures for backend tests — async MongoDB via mongomock."""
+"""Shared test fixtures for backend tests — async MongoDB via a real mongodb://localhost:27017."""
 
 import asyncio
 
