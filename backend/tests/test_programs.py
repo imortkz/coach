@@ -199,6 +199,13 @@ class TestUpdateProgram:
         assert data["exercises"][0]["exercise"]["name"] == "Squat"
         assert len(data["exercises"][0]["sets"]) == 2
 
+        # New model: editing inserts a new row, it does not fork the lineage.
+        # The program is still addressed by the same id and the listing shows
+        # exactly one entry (the latest version), not one row per version.
+        assert data["id"] == program_id
+        list_resp = await client.get("/api/programs")
+        assert len([p for p in list_resp.json() if p["id"] == program_id]) == 1
+
     @pytest.mark.asyncio
     async def test_update_nonexistent_program_returns_404(self, client, seed_exercises):
         payload = {"name": "Ghost", "exercises": []}

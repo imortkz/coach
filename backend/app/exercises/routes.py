@@ -8,7 +8,7 @@ from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.exercises.models import Exercise
 from app.exercises.schemas import ExerciseCreate, ExerciseRead, ExerciseUpdate
-from app.programs.models import Program
+from app.programs.service import list_current_programs
 from app.workouts.schemas import (
     ExerciseHistoryResponse,
     ExerciseSession,
@@ -128,10 +128,14 @@ async def delete_exercise(
     if exercise.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot delete another user's exercise")
 
-    # Check if exercise is used in any of the user's programs
-    programs_using = await Program.find(
-        {"user_id": current_user.id, "exercises.exercise_id": exercise_id}
-    ).to_list()
+    # Check if exercise is used in the CURRENT version of any of the user's
+    # programs. Historical versions are immutable and keep a denormalized copy
+    # of the exercise, so only current usage should block deletion.
+    current_programs = await list_current_programs(current_user.id)
+    programs_using = [
+        p for p in current_programs
+        if any(pe.exercise_id == exercise_id for pe in p.exercises)
+    ]
     if programs_using:
         program_names = [p.name for p in programs_using]
         raise HTTPException(
