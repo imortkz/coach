@@ -147,8 +147,76 @@ class TestDeleteExercise:
         assert "used in" in response.json()["detail"].lower()
 
 
+@pytest_asyncio.fixture
+async def other_users_exercise(db):
+    """Insert a custom exercise owned by a DIFFERENT user."""
+    ex = Exercise(
+        user_id="some-other-user",
+        name="Their Secret Press",
+        muscle_group="Chest",
+        equipment="Machine",
+        is_custom=True,
+    )
+    await ex.insert()
+    return ex
+
+
 class TestGetExercise:
     @pytest.mark.asyncio
     async def test_get_nonexistent_exercise_returns_404(self, client, db):
         response = await client.get("/api/exercises/nonexistent-id")
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_other_users_exercise_returns_404(self, client, other_users_exercise):
+        response = await client.get(f"/api/exercises/{other_users_exercise.id}")
+        assert response.status_code == 404
+
+
+class TestExerciseHistory:
+    @pytest.mark.asyncio
+    async def test_history_nonexistent_exercise_returns_404(self, client, db):
+        response = await client.get("/api/exercises/nonexistent-id/history")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_history_other_users_exercise_returns_404(self, client, other_users_exercise):
+        response = await client.get(f"/api/exercises/{other_users_exercise.id}/history")
+        assert response.status_code == 404
+
+
+class TestExerciseOwnership:
+    """Another user's custom exercise is off-limits via the API."""
+
+    @pytest_asyncio.fixture
+    async def others_exercise(self, db) -> Exercise:
+        ex = Exercise(
+            user_id="some-other-user",
+            name="Their Press",
+            muscle_group="Chest",
+            equipment="Machine",
+            is_custom=True,
+        )
+        await ex.insert()
+        return ex
+
+    @pytest.mark.asyncio
+    async def test_cannot_update_another_users_exercise(self, client, others_exercise):
+        resp = await client.put(
+            f"/api/exercises/{others_exercise.id}", json={"name": "Hijacked"}
+        )
+        assert resp.status_code == 403
+        # The original is untouched.
+        unchanged = await Exercise.get(others_exercise.id)
+        assert unchanged.name == "Their Press"
+
+    @pytest.mark.asyncio
+    async def test_cannot_delete_another_users_exercise(self, client, others_exercise):
+        resp = await client.delete(f"/api/exercises/{others_exercise.id}")
+        assert resp.status_code == 403
+        assert await Exercise.get(others_exercise.id) is not None
+
+    @pytest.mark.asyncio
+    async def test_history_of_another_users_exercise_returns_404(self, client, others_exercise):
+        resp = await client.get(f"/api/exercises/{others_exercise.id}/history")
+        assert resp.status_code == 404
