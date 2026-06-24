@@ -30,7 +30,7 @@
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.5.0",
     "eslint-plugin-vue": "^10.9.2",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.1",
     "prettier": "^3.8.4",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
