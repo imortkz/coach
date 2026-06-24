@@ -105,6 +105,7 @@ export interface ReportFrequencyEntry {
 
 export interface ReportPersonalRecord {
   exercise_name: string
+  exercise_name_ru?: string | null
   best_weight_in_period: number
   previous_best: number | null
   is_new_pr: boolean

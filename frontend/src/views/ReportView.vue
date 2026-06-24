@@ -15,8 +15,12 @@ import { useReportStore } from '@/stores/report'
 
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const store = useReportStore()
+
+function prName(pr: { exercise_name: string; exercise_name_ru?: string | null }): string {
+  return locale.value === 'ru' && pr.exercise_name_ru ? pr.exercise_name_ru : pr.exercise_name
+}
 
 const WEEK_OPTIONS = [2, 4, 8] as const
 
@@ -193,7 +197,7 @@ onMounted(() => {
               class="border-b border-gray-100 last:border-0"
             >
               <td class="py-2">
-                <span>{{ pr.exercise_name }}</span>
+                <span>{{ prName(pr) }}</span>
                 <span
                   v-if="pr.is_new_pr"
                   class="ml-2 inline-block bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded"

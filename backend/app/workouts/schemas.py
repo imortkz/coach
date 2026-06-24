@@ -125,6 +125,7 @@ class ReportFrequencyEntry(BaseModel):
 
 class ReportPersonalRecord(BaseModel):
     exercise_name: str
+    exercise_name_ru: str | None = None
     best_weight_in_period: float
     previous_best: float | None
     is_new_pr: bool
