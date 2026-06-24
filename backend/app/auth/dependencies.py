@@ -1,12 +1,19 @@
 """FastAPI dependencies for authentication."""
 
+import hmac
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 
 from app.auth.jwt import decode_access_token
 from app.auth.models import User
-from app.config import DEV_MODE, DEV_USER_ID
+from app.config import (
+    AGENT_API_TOKEN,
+    AGENT_USER_TELEGRAM_ID,
+    DEV_MODE,
+    DEV_USER_ID,
+)
 
 security = HTTPBearer(auto_error=False)
 
@@ -31,6 +38,23 @@ async def get_current_user(
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # --- Agent service token ---
+    # A static opaque key (not a JWT) that authenticates an automated agent as
+    # the configured user. Checked before JWT decode since it is not a JWT.
+    # Constant-time compare; only active when AGENT_API_TOKEN is configured.
+    if AGENT_API_TOKEN and hmac.compare_digest(
+        credentials.credentials, AGENT_API_TOKEN
+    ):
+        agent_user = await User.find_one(
+            User.telegram_id == AGENT_USER_TELEGRAM_ID
+        )
+        if not agent_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Agent user not found",
+            )
+        return agent_user
 
     try:
         payload = decode_access_token(credentials.credentials)
