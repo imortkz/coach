@@ -147,8 +147,39 @@ class TestDeleteExercise:
         assert "used in" in response.json()["detail"].lower()
 
 
+@pytest_asyncio.fixture
+async def other_users_exercise(db):
+    """Insert a custom exercise owned by a DIFFERENT user."""
+    ex = Exercise(
+        user_id="some-other-user",
+        name="Their Secret Press",
+        muscle_group="Chest",
+        equipment="Machine",
+        is_custom=True,
+    )
+    await ex.insert()
+    return ex
+
+
 class TestGetExercise:
     @pytest.mark.asyncio
     async def test_get_nonexistent_exercise_returns_404(self, client, db):
         response = await client.get("/api/exercises/nonexistent-id")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_other_users_exercise_returns_404(self, client, other_users_exercise):
+        response = await client.get(f"/api/exercises/{other_users_exercise.id}")
+        assert response.status_code == 404
+
+
+class TestExerciseHistory:
+    @pytest.mark.asyncio
+    async def test_history_nonexistent_exercise_returns_404(self, client, db):
+        response = await client.get("/api/exercises/nonexistent-id/history")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_history_other_users_exercise_returns_404(self, client, other_users_exercise):
+        response = await client.get(f"/api/exercises/{other_users_exercise.id}/history")
         assert response.status_code == 404

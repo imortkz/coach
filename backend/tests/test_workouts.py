@@ -124,6 +124,38 @@ class TestUpdateSet:
         assert data["reps"] == 6
 
 
+    @pytest.mark.asyncio
+    async def test_update_set_not_found_returns_404(self, client, seed_program):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        resp = await client.put(f"/api/workouts/{workout_id}/sets/nonexistent-set", json={
+            "weight_kg": 65.0,
+        })
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_set_partial_leaves_weight_unchanged(self, client, seed_program, seed_exercises):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 1,
+            "weight_kg": 60.0,
+            "reps": 8,
+        })
+        set_id = set_resp.json()["id"]
+
+        resp = await client.put(f"/api/workouts/{workout_id}/sets/{set_id}", json={
+            "reps": 5,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["reps"] == 5
+        assert data["weight_kg"] == 60.0  # unchanged
+
+
 class TestDeleteSet:
     @pytest.mark.asyncio
     async def test_delete_set(self, client, seed_program, seed_exercises):
@@ -140,6 +172,14 @@ class TestDeleteSet:
 
         resp = await client.delete(f"/api/workouts/{workout_id}/sets/{set_id}")
         assert resp.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_delete_set_not_found_returns_404(self, client, seed_program):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        resp = await client.delete(f"/api/workouts/{workout_id}/sets/nonexistent-set")
+        assert resp.status_code == 404
 
 
 class TestDeleteExerciseSets:
@@ -315,6 +355,40 @@ class TestListWorkouts:
         assert w2.id not in ids
         assert w1.id in ids
 
+    @pytest.mark.asyncio
+    async def test_filter_by_program_id(self, client, db, test_user, seed_exercises):
+        now = datetime.now(timezone.utc)
+        w_prog_a = Workout(
+            user_id=test_user.id, program_id="prog-a",
+            completed_at=now, sets=[],
+        )
+        await w_prog_a.insert()
+        w_prog_b = Workout(
+            user_id=test_user.id, program_id="prog-b",
+            completed_at=now, sets=[],
+        )
+        await w_prog_b.insert()
+
+        resp = await client.get("/api/workouts?program_id=prog-a")
+        assert resp.status_code == 200
+        ids = [w["id"] for w in resp.json()["items"]]
+        assert ids == [w_prog_a.id]
+
+    @pytest.mark.asyncio
+    async def test_limit_capped_at_100(self, client, db, test_user, seed_exercises):
+        base_time = datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc)
+        for i in range(105):
+            w = Workout(
+                user_id=test_user.id,
+                completed_at=base_time + timedelta(minutes=i),
+                sets=[],
+            )
+            await w.insert()
+
+        resp = await client.get("/api/workouts?limit=500")
+        assert resp.status_code == 200
+        assert len(resp.json()["items"]) == 100
+
 
 class TestExerciseHistory:
     @pytest.mark.asyncio
@@ -459,6 +533,41 @@ class TestProgression:
         suggestion = resp.json()["suggestion"]
         assert suggestion["type"] == "reps"
         assert suggestion["suggested_reps"] == 9
+        assert suggestion["reason"] == "hit_target"
+
+    @pytest.mark.asyncio
+    async def test_user_increment_override(self, client, db, test_user, seed_exercises, seed_program):
+        """A per-user progression_increment_<equipment> Setting overrides the default."""
+        from app.workouts.models import Setting
+
+        # Bench Press is Barbell (default increment 2.5). Override it to 5.0 for this user.
+        await Setting(
+            user_id=test_user.id, key="progression_increment_barbell", value="5.0"
+        ).insert()
+
+        w = Workout(
+            user_id=test_user.id,
+            program_id=seed_program.id,
+            started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
+            completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
+            sets=[
+                WorkoutSet(
+                    exercise_id=seed_exercises[0].id,
+                    exercise_name="Bench Press",
+                    exercise_equipment="Barbell",
+                    set_number=1, weight_kg=60.0, reps=8, is_warmup=False,
+                ),
+            ],
+        )
+        await w.insert()
+
+        resp = await client.get(
+            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.id}"
+        )
+        suggestion = resp.json()["suggestion"]
+        assert suggestion["type"] == "weight"
+        assert suggestion["increment"] == 5.0
+        assert suggestion["suggested_weight_kg"] == 65.0  # 60 + 5.0 override, not + 2.5 default
         assert suggestion["reason"] == "hit_target"
 
     @pytest.mark.asyncio
