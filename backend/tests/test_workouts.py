@@ -61,6 +61,18 @@ class TestStartWorkout:
         resp = await client.post("/api/workouts", json={"program_id": "nonexistent"})
         assert resp.status_code == 404
 
+    @pytest.mark.asyncio
+    async def test_start_workout_with_another_users_program_returns_404(self, client, db):
+        """A program owned by someone else is indistinguishable from a missing one."""
+        others_program = Program(user_id="some-other-user", name="Their Split", exercises=[])
+        await others_program.insert()
+
+        resp = await client.post("/api/workouts", json={"program_id": others_program.id})
+
+        assert resp.status_code == 404
+        # Nothing was started for the requesting user.
+        assert await Workout.find(Workout.user_id == DEV_USER_ID).to_list() == []
+
 
 class TestActiveWorkout:
     @pytest.mark.asyncio
