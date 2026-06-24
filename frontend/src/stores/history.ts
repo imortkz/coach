@@ -51,6 +51,14 @@ export const useHistoryStore = defineStore('history', () => {
     loadWorkouts(true)
   }
 
+  async function deleteWorkout(id: string): Promise<void> {
+    const res = await apiFetch(`${API_BASE}/${id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) {
+      throw new Error(`Failed to delete workout: ${res.statusText}`)
+    }
+    workouts.value = workouts.value.filter((w) => w.id !== id)
+  }
+
   return {
     workouts,
     hasMore,
@@ -59,5 +67,6 @@ export const useHistoryStore = defineStore('history', () => {
     programFilter,
     loadWorkouts,
     setFilter,
+    deleteWorkout,
   }
 })

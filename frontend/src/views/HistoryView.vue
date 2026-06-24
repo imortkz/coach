@@ -37,6 +37,16 @@ function toggleExpand(id: string) {
   }
 }
 
+async function onDeleteWorkout(id: string) {
+  if (!confirm(t('history.delete_confirm'))) return
+  try {
+    await historyStore.deleteWorkout(id)
+    expandedIds.value.delete(id)
+  } catch (e) {
+    alert(e instanceof Error ? e.message : t('history.failed_delete'))
+  }
+}
+
 function onFilterChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   const programId = value === '' ? null : value
@@ -102,6 +112,7 @@ onMounted(async () => {
         :expanded="expandedIds.has(workout.id)"
         :program-name="getProgramName(workout.program_id)"
         @toggle="toggleExpand(workout.id)"
+        @delete="onDeleteWorkout(workout.id)"
       />
 
       <!-- Load more button -->
