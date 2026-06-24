@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check:no-raw-fetch": "node scripts/check-no-raw-fetch.mjs",
     "lint": "eslint .",
     "format": "prettier --write src/"
