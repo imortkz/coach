@@ -1,8 +1,8 @@
 export default {
   nav: {
-    exercises: 'Упражнения',
-    programs: 'Программы',
-    workout: 'Тренировка',
+    exercises: 'Каталог',
+    programs: 'Планы',
+    workout: 'Тренинг',
     history: 'История',
     report: 'Отчёт',
     settings: 'Настройки',
