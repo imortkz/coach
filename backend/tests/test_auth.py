@@ -163,3 +163,77 @@ class TestTelegramLogin:
             "hash": "invalidhash",
         })
         assert resp.status_code == 401
+
+
+class TestAgentToken:
+    """The static agent service token authenticates as the configured user."""
+
+    AGENT_TG_ID = 555000111
+    AGENT_TOKEN = "agent-secret-token-for-tests"
+
+    @pytest_asyncio.fixture
+    async def agent_user(self, db) -> User:
+        """User the agent token maps to (matched by telegram_id)."""
+        user = User(
+            telegram_id=self.AGENT_TG_ID,
+            username="agent_owner",
+            first_name="Agent Owner",
+        )
+        await user.insert()
+        return user
+
+    def _configure(self, monkeypatch):
+        import app.auth.dependencies as deps
+        monkeypatch.setattr(deps, "AGENT_API_TOKEN", self.AGENT_TOKEN)
+        monkeypatch.setattr(deps, "AGENT_USER_TELEGRAM_ID", self.AGENT_TG_ID)
+
+    @pytest.mark.asyncio
+    async def test_agent_token_resolves_to_configured_user(
+        self, client, db, agent_user, monkeypatch
+    ):
+        """Valid agent token authenticates as the configured user."""
+        self._configure(monkeypatch)
+        resp = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {self.AGENT_TOKEN}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["id"] == agent_user.id
+
+    @pytest.mark.asyncio
+    async def test_agent_token_has_write_access(
+        self, client, db, agent_user, monkeypatch
+    ):
+        """Agent token can write (POST), i.e. full read+write as the user."""
+        self._configure(monkeypatch)
+        resp = await client.post(
+            "/api/exercises",
+            json={"name": "Agent Ex", "muscle_group": "Back", "equipment": "Barbell"},
+            headers={"Authorization": f"Bearer {self.AGENT_TOKEN}"},
+        )
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_wrong_agent_token_falls_through_to_jwt_and_401(
+        self, client, db, agent_user, monkeypatch
+    ):
+        """A token that is neither the agent key nor a valid JWT returns 401."""
+        self._configure(monkeypatch)
+        resp = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": "Bearer not-the-agent-token"},
+        )
+        assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_agent_token_disabled_when_unconfigured(
+        self, client, db, agent_user, monkeypatch
+    ):
+        """With AGENT_API_TOKEN empty the path is inert (token treated as bad JWT)."""
+        import app.auth.dependencies as deps
+        monkeypatch.setattr(deps, "AGENT_API_TOKEN", "")
+        resp = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {self.AGENT_TOKEN}"},
+        )
+        assert resp.status_code == 401

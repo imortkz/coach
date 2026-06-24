@@ -37,6 +37,10 @@ services:
       DEV_MODE: "false"
       JWT_SECRET: ${JWT_SECRET}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Optional automated-agent access (read+write as the configured user).
+      # Leave empty to disable. See .env.example.
+      AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
+      AGENT_USER_TELEGRAM_ID: ${AGENT_USER_TELEGRAM_ID:-0}
     networks:
       - gymcoach
     depends_on:
