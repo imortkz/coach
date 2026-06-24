@@ -1,4 +1,4 @@
-"""Program CRUD API routes — async MongoDB/Beanie with versioning."""
+"""Program CRUD API routes — versioned rows (current = max version)."""
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -6,7 +6,7 @@ from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.exercises.models import Exercise
 from app.exercises.schemas import ExerciseRead
-from app.programs.models import Program, ProgramExercise, ProgramSet, ProgramVersion
+from app.programs.models import Program, ProgramExercise, ProgramSet
 from app.programs.schemas import (
     ProgramCreate,
     ProgramExerciseRead,
@@ -14,6 +14,7 @@ from app.programs.schemas import (
     ProgramSetRead,
     ProgramUpdate,
 )
+from app.programs.service import get_current_program, list_current_programs
 
 router = APIRouter(prefix="/programs", tags=["programs"])
 
@@ -89,11 +90,12 @@ async def _program_to_read(program: Program) -> ProgramRead:
         ))
 
     return ProgramRead(
-        id=program.id,
+        # Callers address a program by its LINEAGE id, never the per-row _id.
+        id=program.program_id,
         name=program.name,
         created_at=program.created_at,
         rest_timer_disabled=program.rest_timer_disabled,
-        current_version=program.current_version,
+        current_version=program.version,
         exercises=exercises_read,
     )
 
@@ -102,10 +104,9 @@ async def _program_to_read(program: Program) -> ProgramRead:
 async def list_programs(
     current_user: User = Depends(get_current_user),
 ):
-    """List all programs for the current user."""
-    programs = await Program.find(
-        {"user_id": current_user.id}
-    ).sort([("created_at", -1)]).to_list()
+    """List the current row of each of the user's program lineages."""
+    programs = await list_current_programs(current_user.id)
+    programs.sort(key=lambda p: p.created_at, reverse=True)
     return [await _program_to_read(p) for p in programs]
 
 
@@ -114,8 +115,8 @@ async def get_program(
     program_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    """Get a single program owned by the current user."""
-    program = await Program.get(program_id)
+    """Get the current version of a single program owned by the current user."""
+    program = await get_current_program(program_id)
     if not program or program.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Program not found")
     return await _program_to_read(program)
@@ -134,7 +135,7 @@ async def create_program(
         name=data.name,
         rest_timer_disabled=data.rest_timer_disabled,
         exercises=exercises,
-        current_version=1,
+        version=1,
     )
     await program.insert()
     return await _program_to_read(program)
@@ -146,28 +147,30 @@ async def update_program(
     data: ProgramUpdate,
     current_user: User = Depends(get_current_user),
 ):
-    """Full-replace update with versioning: archives current state before overwriting."""
-    program = await Program.get(program_id)
-    if not program or program.user_id != current_user.id:
+    """Full-replace update via versioning: insert a NEW row at version+1.
+
+    The previous row is left untouched as immutable history; "current" is
+    simply the new highest version. The unique (user_id, program_id, version)
+    index means a racing concurrent edit raises DuplicateKeyError rather than
+    creating two rows at the same version.
+    """
+    current = await get_current_program(program_id)
+    if not current or current.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Program not found")
 
-    # Archive current version before modifying
-    version_snapshot = ProgramVersion(
-        version=program.current_version,
-        name=program.name,
-        rest_timer_disabled=program.rest_timer_disabled,
-        exercises=program.exercises,
+    new_row = Program(
+        program_id=current.program_id,
+        version=current.version + 1,
+        user_id=current.user_id,
+        name=data.name,
+        rest_timer_disabled=data.rest_timer_disabled,
+        # Preserve the lineage's original creation time across edits so the
+        # program's displayed created_at (and list ordering) stays stable.
+        created_at=current.created_at,
+        exercises=await _resolve_exercises(data.exercises),
     )
-    program.versions.append(version_snapshot)
-
-    # Apply update
-    program.name = data.name
-    program.rest_timer_disabled = data.rest_timer_disabled
-    program.exercises = await _resolve_exercises(data.exercises)
-    program.current_version += 1
-
-    await program.save()
-    return await _program_to_read(program)
+    await new_row.insert()
+    return await _program_to_read(new_row)
 
 
 @router.delete("/{program_id}", status_code=204)
@@ -175,8 +178,14 @@ async def delete_program(
     program_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a program owned by the current user."""
-    program = await Program.get(program_id)
-    if not program or program.user_id != current_user.id:
+    """Delete a program owned by the current user — the WHOLE lineage.
+
+    Deleting a single row would let max(version) resurrect a stale older
+    version, so every version of the lineage is removed.
+    """
+    result = await Program.find(
+        Program.program_id == program_id,
+        Program.user_id == current_user.id,
+    ).delete()
+    if not result or result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Program not found")
-    await program.delete()
