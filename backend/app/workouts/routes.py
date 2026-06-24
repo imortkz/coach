@@ -9,7 +9,7 @@ from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.exercises.models import Exercise
 from app.exercises.schemas import ExerciseRead
-from app.programs.service import get_current_program
+from app.programs.models import Program
 from app.workouts.models import Setting, Workout, WorkoutSet
 from app.workouts.schemas import (
     PreFillSet,
@@ -85,7 +85,7 @@ def _workout_to_read(
 
 async def _compute_prefill(program_id: str, user_id: str) -> dict[str, list[PreFillSet]]:
     """Compute pre-fill data for a new workout."""
-    program = await get_current_program(program_id)
+    program = await Program.get(program_id)
     if not program:
         return {}
 
@@ -159,7 +159,7 @@ async def compute_progression(
     if not exercise:
         return None
 
-    program = await get_current_program(program_id)
+    program = await Program.get(program_id)
     if not program:
         return None
 
@@ -287,17 +287,14 @@ async def start_workout(
     current_user: User = Depends(get_current_user),
 ):
     """Start a new workout from a program template with pre-fill data."""
-    program = await get_current_program(data.program_id)
+    program = await Program.get(data.program_id)
     if not program or program.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Program not found")
 
     workout = Workout(
         user_id=current_user.id,
-        # Pin the lineage id + the resolved CURRENT version so this workout
-        # always maps back to the exact template it was started from, even
-        # after later edits bump the lineage to a higher version.
         program_id=data.program_id,
-        program_version=program.version,
+        program_version=program.current_version,
     )
     await workout.insert()
 

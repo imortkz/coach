@@ -48,7 +48,7 @@ async def seed_program(db, test_user, seed_exercises):
 class TestStartWorkout:
     @pytest.mark.asyncio
     async def test_start_workout(self, client, seed_program):
-        resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         assert resp.status_code == 201
         data = resp.json()
         assert data["started_at"] is not None
@@ -67,7 +67,7 @@ class TestStartWorkout:
         others_program = Program(user_id="some-other-user", name="Their Split", exercises=[])
         await others_program.insert()
 
-        resp = await client.post("/api/workouts", json={"program_id": others_program.program_id})
+        resp = await client.post("/api/workouts", json={"program_id": others_program.id})
 
         assert resp.status_code == 404
         # Nothing was started for the requesting user.
@@ -77,7 +77,7 @@ class TestStartWorkout:
 class TestActiveWorkout:
     @pytest.mark.asyncio
     async def test_active_workout(self, client, seed_program):
-        await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        await client.post("/api/workouts", json={"program_id": seed_program.id})
         resp = await client.get("/api/workouts/active")
         assert resp.status_code == 200
         data = resp.json()
@@ -93,7 +93,7 @@ class TestActiveWorkout:
 class TestLogSet:
     @pytest.mark.asyncio
     async def test_log_set(self, client, seed_program, seed_exercises):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
@@ -115,7 +115,7 @@ class TestLogSet:
 class TestUpdateSet:
     @pytest.mark.asyncio
     async def test_update_set(self, client, seed_program, seed_exercises):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
@@ -138,7 +138,7 @@ class TestUpdateSet:
 
     @pytest.mark.asyncio
     async def test_update_set_not_found_returns_404(self, client, seed_program):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         resp = await client.put(f"/api/workouts/{workout_id}/sets/nonexistent-set", json={
@@ -148,7 +148,7 @@ class TestUpdateSet:
 
     @pytest.mark.asyncio
     async def test_update_set_partial_leaves_weight_unchanged(self, client, seed_program, seed_exercises):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
@@ -171,7 +171,7 @@ class TestUpdateSet:
 class TestDeleteSet:
     @pytest.mark.asyncio
     async def test_delete_set(self, client, seed_program, seed_exercises):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
@@ -187,7 +187,7 @@ class TestDeleteSet:
 
     @pytest.mark.asyncio
     async def test_delete_set_not_found_returns_404(self, client, seed_program):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         resp = await client.delete(f"/api/workouts/{workout_id}/sets/nonexistent-set")
@@ -197,7 +197,7 @@ class TestDeleteSet:
 class TestDeleteExerciseSets:
     @pytest.mark.asyncio
     async def test_delete_exercise_sets(self, client, seed_program, seed_exercises):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         for s in range(1, 3):
@@ -221,7 +221,7 @@ class TestDeleteExerciseSets:
 class TestDiscardWorkout:
     @pytest.mark.asyncio
     async def test_discard_workout(self, client, seed_program):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         resp = await client.delete(f"/api/workouts/{workout_id}")
@@ -234,7 +234,7 @@ class TestDiscardWorkout:
 class TestCompleteWorkout:
     @pytest.mark.asyncio
     async def test_complete_workout(self, client, seed_program):
-        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         workout_id = create_resp.json()["id"]
 
         resp = await client.patch(f"/api/workouts/{workout_id}/complete")
@@ -246,7 +246,7 @@ class TestCompleteWorkout:
 class TestPreFill:
     @pytest.mark.asyncio
     async def test_prefill_last_session(self, client, seed_program, seed_exercises):
-        w1 = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        w1 = await client.post("/api/workouts", json={"program_id": seed_program.id})
         w1_id = w1.json()["id"]
 
         await client.post(f"/api/workouts/{w1_id}/sets", json={
@@ -266,7 +266,7 @@ class TestPreFill:
 
         await client.patch(f"/api/workouts/{w1_id}/complete")
 
-        w2 = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        w2 = await client.post("/api/workouts", json={"program_id": seed_program.id})
         assert w2.status_code == 201
         pre_fill = w2.json()["pre_fill"]
 
@@ -281,7 +281,7 @@ class TestPreFill:
 
     @pytest.mark.asyncio
     async def test_prefill_fallback_to_program(self, client, seed_program, seed_exercises):
-        resp = await client.post("/api/workouts", json={"program_id": seed_program.program_id})
+        resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
         assert resp.status_code == 201
         pre_fill = resp.json()["pre_fill"]
 
@@ -312,7 +312,7 @@ class TestSettings:
 class TestProgramRestTimerDisabled:
     @pytest.mark.asyncio
     async def test_program_rest_timer_disabled(self, client, seed_program):
-        resp = await client.get(f"/api/programs/{seed_program.program_id}")
+        resp = await client.get(f"/api/programs/{seed_program.id}")
         assert resp.status_code == 200
         data = resp.json()
         assert "rest_timer_disabled" in data
@@ -442,7 +442,7 @@ class TestProgression:
     async def test_suggest_increase(self, client, db, test_user, seed_exercises, seed_program):
         w = Workout(
             user_id=test_user.id,
-            program_id=seed_program.program_id,
+            program_id=seed_program.id,
             started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
             completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
             sets=[
@@ -469,7 +469,7 @@ class TestProgression:
         await w.insert()
 
         resp = await client.get(
-            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.program_id}"
+            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.id}"
         )
         assert resp.status_code == 200
         suggestion = resp.json()["suggestion"]
@@ -482,7 +482,7 @@ class TestProgression:
     async def test_keep_weight(self, client, db, test_user, seed_exercises, seed_program):
         w = Workout(
             user_id=test_user.id,
-            program_id=seed_program.program_id,
+            program_id=seed_program.id,
             started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
             completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
             sets=[
@@ -503,7 +503,7 @@ class TestProgression:
         await w.insert()
 
         resp = await client.get(
-            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.program_id}"
+            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.id}"
         )
         suggestion = resp.json()["suggestion"]
         assert suggestion["type"] == "keep"
@@ -527,7 +527,7 @@ class TestProgression:
 
         w = Workout(
             user_id=test_user.id,
-            program_id=seed_program.program_id,
+            program_id=seed_program.id,
             started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
             completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
             sets=[
@@ -541,7 +541,7 @@ class TestProgression:
         )
         await w.insert()
 
-        resp = await client.get(f"/api/exercises/{bw_ex.id}/history?program_id={seed_program.program_id}")
+        resp = await client.get(f"/api/exercises/{bw_ex.id}/history?program_id={seed_program.id}")
         suggestion = resp.json()["suggestion"]
         assert suggestion["type"] == "reps"
         assert suggestion["suggested_reps"] == 9
@@ -559,7 +559,7 @@ class TestProgression:
 
         w = Workout(
             user_id=test_user.id,
-            program_id=seed_program.program_id,
+            program_id=seed_program.id,
             started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
             completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
             sets=[
@@ -574,7 +574,7 @@ class TestProgression:
         await w.insert()
 
         resp = await client.get(
-            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.program_id}"
+            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.id}"
         )
         suggestion = resp.json()["suggestion"]
         assert suggestion["type"] == "weight"
@@ -586,7 +586,7 @@ class TestProgression:
     async def test_mixed_weights_no_suggestion(self, client, db, test_user, seed_exercises, seed_program):
         w = Workout(
             user_id=test_user.id,
-            program_id=seed_program.program_id,
+            program_id=seed_program.id,
             started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
             completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
             sets=[
@@ -607,6 +607,6 @@ class TestProgression:
         await w.insert()
 
         resp = await client.get(
-            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.program_id}"
+            f"/api/exercises/{seed_exercises[0].id}/history?program_id={seed_program.id}"
         )
         assert resp.json()["suggestion"] is None
