@@ -420,7 +420,7 @@ async def get_progress_report(
     prior_best: dict[str, float] = {}
     for w in prior_workouts:
         for s in w.sets:
-            if s.is_warmup or s.weight_kg is None:
+            if s.is_warmup or s.weight_kg is None or s.reps is None:
                 continue
             if s.weight_kg > prior_best.get(s.exercise_name, 0.0):
                 prior_best[s.exercise_name] = s.weight_kg

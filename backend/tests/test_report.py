@@ -153,6 +153,48 @@ class TestProgressReport:
         assert all(entry["count"] == 0 for entry in data["frequency_by_week"])
 
     @pytest.mark.asyncio
+    async def test_prior_set_without_reps_does_not_set_previous_best(self, db, client, test_user):
+        # Arrange: a prior-period set logged with a weight but no reps (reps=None)
+        # at 100kg, and a real in-period working set at 80kg for the same exercise.
+        # A reps=None set is incomplete and must never count toward PR history,
+        # exactly as it is excluded from the in-period best.
+        now = datetime.now(timezone.utc)
+        today = now.date()
+        current_monday_date = today - timedelta(days=today.weekday())
+        in_period_dt = datetime.combine(
+            current_monday_date, datetime.min.time(), tzinfo=timezone.utc
+        ).replace(hour=12)
+
+        prior = Workout(
+            user_id=test_user.id,
+            started_at=now - timedelta(days=50),
+            completed_at=now - timedelta(days=50),
+            sets=[_set(exercise_name="Deadlift", muscle_group="Back", weight_kg=100.0, reps=None)],
+        )
+        await prior.insert()
+
+        in_period = Workout(
+            user_id=test_user.id,
+            started_at=in_period_dt,
+            completed_at=in_period_dt,
+            sets=[_set(exercise_name="Deadlift", muscle_group="Back", weight_kg=80.0, reps=5)],
+        )
+        await in_period.insert()
+
+        # Act
+        resp = await client.get("/api/workouts/report?weeks=4")
+
+        # Assert
+        assert resp.status_code == 200
+        prs = {p["exercise_name"]: p for p in resp.json()["personal_records"]}
+        assert "Deadlift" in prs
+        deadlift = prs["Deadlift"]
+        assert deadlift["best_weight_in_period"] == pytest.approx(80.0)
+        # The phantom 100kg reps=None prior set must NOT mask the real record.
+        assert deadlift["previous_best"] is None
+        assert deadlift["is_new_pr"] is True
+
+    @pytest.mark.asyncio
     async def test_report_rejects_invalid_weeks(self, client, db, test_user):
         resp = await client.get("/api/workouts/report?weeks=0")
         assert resp.status_code == 422
