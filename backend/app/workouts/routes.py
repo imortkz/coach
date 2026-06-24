@@ -33,7 +33,23 @@ router = APIRouter(prefix="/workouts", tags=["workouts"])
 settings_router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-def _set_to_read(ws: WorkoutSet, workout_id: str) -> WorkoutSetRead:
+async def _name_ru_map(exercise_ids: set[str]) -> dict[str, str]:
+    """Look up current RU names for the given exercise ids.
+
+    Workout history stores only the EN snapshot name on each set; this joins
+    the live Exercise catalog so history/report can show name_ru in RU locale.
+    Missing/deleted exercises simply fall back to the snapshot EN name.
+    """
+    ids = [eid for eid in exercise_ids if eid]
+    if not ids:
+        return {}
+    exercises = await Exercise.find({"_id": {"$in": ids}}).to_list()
+    return {e.id: e.name_ru for e in exercises if e.name_ru}
+
+
+def _set_to_read(
+    ws: WorkoutSet, workout_id: str, name_ru_map: dict[str, str] | None = None
+) -> WorkoutSetRead:
     """Convert an embedded WorkoutSet to WorkoutSetRead."""
     return WorkoutSetRead(
         id=ws.id,
@@ -49,18 +65,21 @@ def _set_to_read(ws: WorkoutSet, workout_id: str) -> WorkoutSetRead:
             muscle_group=ws.exercise_muscle_group,
             equipment=ws.exercise_equipment,
             is_custom=ws.exercise_is_custom,
+            name_ru=(name_ru_map or {}).get(ws.exercise_id),
         ),
     )
 
 
-def _workout_to_read(w: Workout) -> WorkoutRead:
+def _workout_to_read(
+    w: Workout, name_ru_map: dict[str, str] | None = None
+) -> WorkoutRead:
     """Convert a Workout document to WorkoutRead."""
     return WorkoutRead(
         id=w.id,
         program_id=w.program_id,
         started_at=w.started_at,
         completed_at=w.completed_at,
-        sets=[_set_to_read(s, w.id) for s in w.sets],
+        sets=[_set_to_read(s, w.id, name_ru_map) for s in w.sets],
     )
 
 
@@ -254,7 +273,12 @@ async def list_workouts(
         [("completed_at", -1)]
     ).skip(offset).limit(limit).to_list()
 
-    return WorkoutListResponse(items=[_workout_to_read(w) for w in workouts])
+    name_ru_map = await _name_ru_map(
+        {s.exercise_id for w in workouts for s in w.sets}
+    )
+    return WorkoutListResponse(
+        items=[_workout_to_read(w, name_ru_map) for w in workouts]
+    )
 
 
 @router.post("", response_model=WorkoutStartResponse, status_code=201)
@@ -305,7 +329,8 @@ async def get_active_workout(
     )
     if not workout:
         raise HTTPException(status_code=404, detail="No active workout")
-    return _workout_to_read(workout)
+    name_ru_map = await _name_ru_map({s.exercise_id for s in workout.sets})
+    return _workout_to_read(workout, name_ru_map)
 
 
 def _iso_week_label(dt: datetime) -> str:
@@ -362,6 +387,7 @@ async def get_progress_report(
     freq_acc: dict[str, int] = defaultdict(int)
     counted_workouts: set[tuple[str, str]] = set()
     pr_in_period: dict[str, float] = {}
+    name_to_id: dict[str, str] = {}
 
     for w in workouts_in_period:
         if w.completed_at is None:
@@ -379,6 +405,7 @@ async def get_progress_report(
                 continue
             volume_acc[(wk_label, s.exercise_muscle_group or "Other")] += s.weight_kg * s.reps
 
+            name_to_id[s.exercise_name] = s.exercise_id
             curr_best = pr_in_period.get(s.exercise_name, 0.0)
             if s.weight_kg > curr_best:
                 pr_in_period[s.exercise_name] = s.weight_kg
@@ -398,10 +425,12 @@ async def get_progress_report(
             if s.weight_kg > prior_best.get(s.exercise_name, 0.0):
                 prior_best[s.exercise_name] = s.weight_kg
 
+    pr_name_ru = await _name_ru_map(set(name_to_id.values()))
     personal_records = sorted(
         (
             ReportPersonalRecord(
                 exercise_name=name,
+                exercise_name_ru=pr_name_ru.get(name_to_id.get(name, "")),
                 best_weight_in_period=period_max,
                 previous_best=prior_best.get(name),
                 is_new_pr=(name not in prior_best) or (period_max > prior_best[name]),
@@ -437,7 +466,8 @@ async def get_workout(
     workout = await Workout.get(workout_id)
     if not workout or workout.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Workout not found")
-    return _workout_to_read(workout)
+    name_ru_map = await _name_ru_map({s.exercise_id for s in workout.sets})
+    return _workout_to_read(workout, name_ru_map)
 
 
 @router.patch("/{workout_id}/complete", response_model=WorkoutRead)
@@ -452,7 +482,8 @@ async def complete_workout(
 
     workout.completed_at = datetime.now(timezone.utc)
     await workout.save()
-    return _workout_to_read(workout)
+    name_ru_map = await _name_ru_map({s.exercise_id for s in workout.sets})
+    return _workout_to_read(workout, name_ru_map)
 
 
 @router.post("/{workout_id}/sets", response_model=WorkoutSetRead, status_code=201)
