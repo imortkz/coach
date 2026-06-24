@@ -1,11 +1,27 @@
 """Tests for authentication endpoints and auth dependency."""
 
+import hashlib
+import hmac
+
 import pytest
 import pytest_asyncio
 
 from app.auth.models import User
 from app.auth.jwt import create_access_token
+from app.auth.telegram import verify_telegram_auth
 from app.config import DEV_MODE, DEV_USER_ID
+
+
+def sign_telegram_payload(bot_token: str, **fields: object) -> dict:
+    """Build a Telegram login payload with a genuine HMAC hash.
+
+    Signs exactly the fields passed, mirroring how the widget signs the
+    data it sends. Returns the fields plus a valid ``hash``.
+    """
+    check_string = "\n".join(sorted(f"{k}={v}" for k, v in fields.items()))
+    secret_key = hashlib.sha256(bot_token.encode()).digest()
+    digest = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+    return {**fields, "hash": digest}
 
 
 class TestDevMode:
@@ -237,3 +253,78 @@ class TestAgentToken:
             headers={"Authorization": f"Bearer {self.AGENT_TOKEN}"},
         )
         assert resp.status_code == 401
+
+
+class TestTelegramLoginSuccess:
+    BOT_TOKEN = "test-bot-token-abc123"
+
+    @pytest.fixture(autouse=True)
+    def _set_bot_token(self, monkeypatch):
+        import app.auth.routes as auth_routes
+        monkeypatch.setattr(auth_routes, "TELEGRAM_BOT_TOKEN", self.BOT_TOKEN)
+
+    @pytest.mark.asyncio
+    async def test_valid_login_creates_user_and_returns_token(self, client, db):
+        """A genuinely-signed first login creates the user and returns a usable token."""
+        payload = sign_telegram_payload(
+            self.BOT_TOKEN,
+            id=555001,
+            first_name="Vera",
+            username="vera",
+            auth_date=1700000000,
+        )
+
+        resp = await client.post("/api/auth/telegram", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["access_token"]
+        assert body["first_name"] == "Vera"
+
+        created = await User.find_one(User.telegram_id == 555001)
+        assert created is not None
+        assert created.first_name == "Vera"
+
+    @pytest.mark.asyncio
+    async def test_repeat_login_updates_profile_without_duplicating(self, client, db):
+        """Logging in again with the same Telegram id refreshes the profile, not a 2nd user."""
+        existing = User(telegram_id=555002, first_name="Old", username="old")
+        await existing.insert()
+
+        payload = sign_telegram_payload(
+            self.BOT_TOKEN,
+            id=555002,
+            first_name="New",
+            username="new",
+            auth_date=1700000100,
+        )
+
+        resp = await client.post("/api/auth/telegram", json=payload)
+
+        assert resp.status_code == 200
+        users = await User.find(User.telegram_id == 555002).to_list()
+        assert len(users) == 1
+        assert users[0].first_name == "New"
+        assert users[0].username == "new"
+
+
+class TestVerifyTelegramAuth:
+    """Unit tests for the HMAC verifier — the auth gate's core contract."""
+
+    BOT_TOKEN = "unit-bot-token-xyz"
+
+    def test_accepts_a_genuinely_signed_payload(self):
+        payload = sign_telegram_payload(
+            self.BOT_TOKEN, id=42, first_name="Real", auth_date=1700000000
+        )
+        assert verify_telegram_auth(payload, self.BOT_TOKEN) is True
+
+    def test_rejects_a_payload_tampered_after_signing(self):
+        payload = sign_telegram_payload(
+            self.BOT_TOKEN, id=42, first_name="Real", auth_date=1700000000
+        )
+        payload["id"] = 9999  # flip a field, keep the old hash
+        assert verify_telegram_auth(payload, self.BOT_TOKEN) is False
+
+    def test_rejects_a_payload_with_no_hash(self):
+        assert verify_telegram_auth({"id": 42, "first_name": "Real"}, self.BOT_TOKEN) is False
