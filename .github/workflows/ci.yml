@@ -110,6 +110,9 @@ jobs:
       - name: Guard against raw fetch('/api/...') calls
         run: npm run check:no-raw-fetch
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
 
