@@ -29,6 +29,7 @@ async def init_db(
     )
 
     await backfill_program_lineage()
+    await sync_program_version_field()
 
 
 async def backfill_program_lineage() -> int:
@@ -47,6 +48,23 @@ async def backfill_program_lineage() -> int:
     result = await Program.get_pymongo_collection().update_many(
         {"program_id": {"$exists": False}},
         [{"$set": {"program_id": "$_id", "version": 1}}],
+    )
+    return result.modified_count
+
+
+async def sync_program_version_field() -> int:
+    """Sync version = current_version for rows where they drifted.
+
+    Between PR-A1 (non-unique index + backfill) and PR-A2 (unique index +
+    version wired into routes) there is a window where a program edit bumps
+    current_version but not version. This one-shot pass closes that gap so
+    the unique index sees consistent state. Idempotent and a no-op once in sync.
+    """
+    from app.programs.models import Program
+
+    result = await Program.get_pymongo_collection().update_many(
+        {"$expr": {"$ne": ["$version", "$current_version"]}},
+        [{"$set": {"version": "$current_version"}}],
     )
     return result.modified_count
 
