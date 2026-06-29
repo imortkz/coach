@@ -84,6 +84,24 @@ const recommendationText = computed<string | null>(() => {
   return null
 })
 
+// Progress highlight (#3): compare this logged set vs the same set last session.
+// Uses estimated 1RM (Epley) so heavier-but-fewer-reps is judged correctly.
+// null = not logged / warmup / no comparable history.
+const progressStatus = computed<'up' | 'same' | 'down' | null>(() => {
+  if (props.isWarmup) return null
+  const cur = props.loggedSet
+  const pf = props.preFillSet
+  if (!cur || !pf) return null
+  if (cur.weight_kg == null || cur.reps == null || pf.weight_kg == null || pf.reps == null) return null
+  if (cur.weight_kg === pf.weight_kg && cur.reps === pf.reps) return 'same'
+  const e1rm = (w: number, r: number) => w * (1 + r / 30)
+  const now = e1rm(cur.weight_kg, cur.reps)
+  const prev = e1rm(pf.weight_kg, pf.reps)
+  if (now > prev) return 'up'
+  if (now < prev) return 'down'
+  return 'same'
+})
+
 const weightValue = ref<number | null>(getInitialWeight())
 const repsValue = ref<number | null>(getInitialReps())
 const isLogged = ref(props.loggedSet !== null)
@@ -186,7 +204,13 @@ function parseNumber(val: string): number | null {
     <div
       class="flex items-center gap-2 px-3 py-2.5 rounded-lg min-h-[44px] transition-colors"
       :class="[
-        isEditing ? 'bg-blue-50' : isLogged ? 'bg-green-50/60' : isWarmup ? 'bg-gray-50' : 'bg-white',
+        isEditing ? 'bg-blue-50'
+          : isLogged
+            ? (progressStatus === 'up' ? 'bg-emerald-50'
+              : progressStatus === 'down' ? 'bg-rose-50'
+              : progressStatus === 'same' ? 'bg-gray-100/70'
+              : 'bg-green-50/60')
+          : isWarmup ? 'bg-gray-50' : 'bg-white',
         !isLogged && 'cursor-pointer hover:bg-gray-50',
         isLogged && !isEditing && 'cursor-pointer'
       ]"
@@ -302,8 +326,21 @@ function parseNumber(val: string): number | null {
           </svg>
         </div>
 
+        <!-- Progress vs last session (#3) -->
+        <span
+          v-if="progressStatus === 'up'"
+          class="flex-shrink-0 ml-auto text-emerald-600 text-sm font-bold leading-none"
+        >▲</span>
+        <span
+          v-else-if="progressStatus === 'down'"
+          class="flex-shrink-0 ml-auto text-rose-500 text-sm font-bold leading-none"
+        >▼</span>
+
         <!-- Checkmark -->
-        <div class="flex-shrink-0 ml-auto">
+        <div
+          class="flex-shrink-0"
+          :class="progressStatus === 'up' || progressStatus === 'down' ? 'ml-2' : 'ml-auto'"
+        >
           <button
             v-if="!isLogged"
             class="w-8 h-8 flex items-center justify-center rounded-full border-2 border-gray-300 text-gray-400 hover:border-green-500 hover:text-green-500 transition-colors"
