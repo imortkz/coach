@@ -89,6 +89,48 @@ class TestActiveWorkout:
         resp = await client.get("/api/workouts/active")
         assert resp.status_code == 404
 
+    @pytest.mark.asyncio
+    async def test_active_workout_returns_prefill_and_suggestions(
+        self, client, seed_program, seed_exercises
+    ):
+        """Resuming an active workout must carry the 'last time' reference and
+        progression suggestion (so a page reload doesn't lose them)."""
+        # First session: log + complete so there is history to reference.
+        w1 = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        w1_id = w1.json()["id"]
+        await client.post(f"/api/workouts/{w1_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 2,
+            "weight_kg": 70.0,
+            "reps": 8,
+            "is_warmup": False,
+        })
+        await client.patch(f"/api/workouts/{w1_id}/complete")
+
+        # Second session left active (not completed) — simulate reload via /active.
+        await client.post("/api/workouts", json={"program_id": seed_program.id})
+        resp = await client.get("/api/workouts/active")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["completed_at"] is None
+        assert "pre_fill" in data and "suggestions" in data
+        ex_id = seed_exercises[0].id
+        assert ex_id in data["pre_fill"]
+        # The non-warmup set from the prior session is reflected in the reference.
+        prior = [f for f in data["pre_fill"][ex_id] if f["set_number"] == 2]
+        assert prior and prior[0]["weight_kg"] == 70.0 and prior[0]["reps"] == 8
+
+    @pytest.mark.asyncio
+    async def test_active_workout_no_program_no_prefill(self, client, db, test_user):
+        """An active workout with no program returns empty history context, not 500."""
+        workout = Workout(user_id=test_user.id, program_id=None)
+        await workout.insert()
+        resp = await client.get("/api/workouts/active")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["pre_fill"] == {}
+        assert data["suggestions"] == {}
+
 
 class TestLogSet:
     @pytest.mark.asyncio

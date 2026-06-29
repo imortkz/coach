@@ -24,6 +24,7 @@ from app.workouts.schemas import (
     WorkoutListResponse,
     WorkoutRead,
     WorkoutSetCreate,
+    WorkoutActiveResponse,
     WorkoutSetRead,
     WorkoutSetUpdate,
     WorkoutStartResponse,
@@ -251,6 +252,21 @@ async def compute_progression(
         )
 
 
+async def _compute_suggestions(
+    program_id: str, user_id: str
+) -> dict[str, SuggestionInfo]:
+    """Progression suggestion per program exercise (empty if no program)."""
+    program = await Program.get(program_id)
+    if not program:
+        return {}
+    suggestions: dict[str, SuggestionInfo] = {}
+    for pe in program.exercises:
+        suggestion = await compute_progression(pe.exercise_id, program_id, user_id)
+        if suggestion is not None:
+            suggestions[pe.exercise_id] = suggestion
+    return suggestions
+
+
 @router.get("", response_model=WorkoutListResponse)
 async def list_workouts(
     limit: int = 20,
@@ -299,13 +315,7 @@ async def start_workout(
     await workout.insert()
 
     pre_fill = await _compute_prefill(data.program_id, current_user.id)
-
-    # Compute progression suggestions for each exercise
-    suggestions: dict[str, SuggestionInfo] = {}
-    for pe in program.exercises:
-        suggestion = await compute_progression(pe.exercise_id, data.program_id, current_user.id)
-        if suggestion is not None:
-            suggestions[pe.exercise_id] = suggestion
+    suggestions = await _compute_suggestions(data.program_id, current_user.id)
 
     return WorkoutStartResponse(
         id=workout.id,
@@ -318,11 +328,16 @@ async def start_workout(
     )
 
 
-@router.get("/active", response_model=WorkoutRead)
+@router.get("/active", response_model=WorkoutActiveResponse)
 async def get_active_workout(
     current_user: User = Depends(get_current_user),
 ):
-    """Get the current in-progress workout (completed_at IS NULL)."""
+    """Get the current in-progress workout (completed_at IS NULL).
+
+    Also returns pre_fill (last completed session per exercise) and progression
+    suggestions, so resuming/reloading a workout keeps the "last time" reference
+    and weight suggestion that POST /workouts originally provided.
+    """
     workout = await Workout.find_one(
         {"user_id": current_user.id, "completed_at": None},
         sort=[("started_at", -1)],
@@ -330,7 +345,23 @@ async def get_active_workout(
     if not workout:
         raise HTTPException(status_code=404, detail="No active workout")
     name_ru_map = await _name_ru_map({s.exercise_id for s in workout.sets})
-    return _workout_to_read(workout, name_ru_map)
+    read = _workout_to_read(workout, name_ru_map)
+
+    pre_fill: dict[str, list[PreFillSet]] = {}
+    suggestions: dict[str, SuggestionInfo] = {}
+    if workout.program_id:
+        pre_fill = await _compute_prefill(workout.program_id, current_user.id)
+        suggestions = await _compute_suggestions(workout.program_id, current_user.id)
+
+    return WorkoutActiveResponse(
+        id=read.id,
+        program_id=read.program_id,
+        started_at=read.started_at,
+        completed_at=read.completed_at,
+        sets=read.sets,
+        pre_fill=pre_fill,
+        suggestions=suggestions,
+    )
 
 
 def _iso_week_label(dt: datetime) -> str:

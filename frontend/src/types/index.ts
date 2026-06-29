@@ -73,6 +73,11 @@ export interface WorkoutStartResponse extends Workout {
   suggestions: Record<string, SuggestionInfo>
 }
 
+export interface WorkoutActiveResponse extends Workout {
+  pre_fill: Record<string, PreFillSet[]>
+  suggestions: Record<string, SuggestionInfo>
+}
+
 export interface ExerciseSessionSet {
   set_number: number
   weight_kg: number | null

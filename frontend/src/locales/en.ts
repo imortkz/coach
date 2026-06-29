@@ -35,6 +35,8 @@ export default {
     loading: 'Loading...',
     loading_programs: 'Loading programs...',
     loading_exercises: 'Loading exercises...',
+    last_time: 'Last',
+    last_time_none: 'Last: —',
     pick_title: 'Start Workout',
     pick_subtitle: 'Choose a program to begin.',
     no_programs: 'No programs yet. Create one first.',
