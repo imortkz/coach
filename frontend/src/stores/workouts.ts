@@ -1,7 +1,7 @@
 import { apiFetch } from '@/lib/apiFetch'
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { Workout, WorkoutSet, WorkoutStartResponse, PreFillSet, SuggestionInfo } from '@/types'
+import type { Workout, WorkoutSet, WorkoutStartResponse, WorkoutActiveResponse, PreFillSet, SuggestionInfo } from '@/types'
 
 const API_BASE = '/api/workouts'
 
@@ -22,7 +22,10 @@ export const useWorkoutsStore = defineStore('workouts', () => {
         return false
       }
       if (!res.ok) throw new Error(`Failed to fetch active workout: ${res.statusText}`)
-      activeWorkout.value = await res.json()
+      const data: WorkoutActiveResponse = await res.json()
+      activeWorkout.value = data
+      preFill.value = data.pre_fill ?? {}
+      suggestions.value = data.suggestions ?? {}
       return true
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch active workout'

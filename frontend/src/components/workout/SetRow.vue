@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, useTemplateRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSwipeLeft } from '@/composables/useSwipeLeft'
 import type { WorkoutSet, PreFillSet, ProgramSet, SuggestionInfo } from '@/types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   setNumber: number
@@ -56,6 +59,15 @@ const hasSuggestionIndicator = computed(() => {
 })
 
 const suggestionType = computed(() => props.suggestion?.type ?? null)
+
+// "Last time" reference: what this set was in the previous session (#1).
+const lastTimeText = computed<string | null>(() => {
+  const pf = props.preFillSet
+  if (!pf || (pf.weight_kg == null && pf.reps == null)) return null
+  const w = pf.weight_kg != null ? `${pf.weight_kg}` : '—'
+  const r = pf.reps != null ? `${pf.reps}` : '—'
+  return `${w} × ${r}`
+})
 
 const weightValue = ref<number | null>(getInitialWeight())
 const repsValue = ref<number | null>(getInitialReps())
@@ -297,6 +309,14 @@ function parseNumber(val: string): number | null {
           </button>
         </div>
       </template>
+    </div>
+
+    <!-- "Last time" reference (#1): previous session's weight × reps for this set -->
+    <div
+      v-if="lastTimeText"
+      class="pl-[3.25rem] pr-3 pb-1 -mt-0.5 text-[11px] leading-none text-gray-400 select-none"
+    >
+      {{ t('workout.last_time') }} {{ lastTimeText }}
     </div>
 
     <!-- Swipe action buttons (revealed on swipe left) -->

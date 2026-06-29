@@ -35,6 +35,8 @@ export default {
     loading: 'Загрузка...',
     loading_programs: 'Загрузка программ...',
     loading_exercises: 'Загрузка упражнений...',
+    last_time: 'Пред.',
+    last_time_none: 'Пред.: —',
     pick_title: 'Начать тренировку',
     pick_subtitle: 'Выберите программу.',
     no_programs: 'Программ пока нет. Создайте первую.',
