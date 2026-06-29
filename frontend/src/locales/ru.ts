@@ -37,6 +37,8 @@ export default {
     loading_exercises: 'Загрузка упражнений...',
     last_time: 'Пред.',
     last_time_none: 'Пред.: —',
+    rec_weight: 'Цель: {weight} кг{inc}',
+    rec_reps: 'Цель: {reps} повт.',
     pick_title: 'Начать тренировку',
     pick_subtitle: 'Выберите программу.',
     no_programs: 'Программ пока нет. Создайте первую.',

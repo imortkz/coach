@@ -69,6 +69,21 @@ const lastTimeText = computed<string | null>(() => {
   return `${w} × ${r}`
 })
 
+// Explicit progression recommendation (#2): show the target as words, not just
+// a silent prefill. Only on the suggestion row, and only when it's a real bump.
+const recommendationText = computed<string | null>(() => {
+  if (!hasSuggestionIndicator.value) return null
+  const s = props.suggestion!
+  if (s.type === 'weight' && s.suggested_weight_kg != null) {
+    const inc = s.increment != null ? ` (+${s.increment})` : ''
+    return t('workout.rec_weight', { weight: s.suggested_weight_kg, inc })
+  }
+  if (s.type === 'reps' && s.suggested_reps != null) {
+    return t('workout.rec_reps', { reps: s.suggested_reps })
+  }
+  return null
+})
+
 const weightValue = ref<number | null>(getInitialWeight())
 const repsValue = ref<number | null>(getInitialReps())
 const isLogged = ref(props.loggedSet !== null)
@@ -311,12 +326,18 @@ function parseNumber(val: string): number | null {
       </template>
     </div>
 
-    <!-- "Last time" reference (#1): previous session's weight × reps for this set -->
+    <!-- Sub-line: "last time" reference (#1) + progression recommendation (#2) -->
     <div
-      v-if="lastTimeText"
-      class="pl-[3.25rem] pr-3 pb-1 -mt-0.5 text-[11px] leading-none text-gray-400 select-none"
+      v-if="lastTimeText || recommendationText"
+      class="pl-[3.25rem] pr-3 pb-1 -mt-0.5 text-[11px] leading-none select-none flex items-center gap-1.5 flex-wrap"
     >
-      {{ t('workout.last_time') }} {{ lastTimeText }}
+      <span v-if="lastTimeText" class="text-gray-400">
+        {{ t('workout.last_time') }} {{ lastTimeText }}
+      </span>
+      <span v-if="lastTimeText && recommendationText" class="text-gray-300">&middot;</span>
+      <span v-if="recommendationText" class="text-emerald-600 font-medium">
+        {{ recommendationText }}
+      </span>
     </div>
 
     <!-- Swipe action buttons (revealed on swipe left) -->
