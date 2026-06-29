@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, useTemplateRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSwipeLeft } from '@/composables/useSwipeLeft'
 import type { WorkoutSet, PreFillSet, ProgramSet, SuggestionInfo } from '@/types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   setNumber: number
@@ -56,6 +59,48 @@ const hasSuggestionIndicator = computed(() => {
 })
 
 const suggestionType = computed(() => props.suggestion?.type ?? null)
+
+// "Last time" reference: what this set was in the previous session (#1).
+const lastTimeText = computed<string | null>(() => {
+  const pf = props.preFillSet
+  if (!pf || (pf.weight_kg == null && pf.reps == null)) return null
+  const w = pf.weight_kg != null ? `${pf.weight_kg}` : '—'
+  const r = pf.reps != null ? `${pf.reps}` : '—'
+  return `${w} × ${r}`
+})
+
+// Explicit progression recommendation (#2): show the target as words, not just
+// a silent prefill. Only on the suggestion row, and only when it's a real bump.
+const recommendationText = computed<string | null>(() => {
+  if (!hasSuggestionIndicator.value) return null
+  const s = props.suggestion!
+  if (s.type === 'weight' && s.suggested_weight_kg != null) {
+    const inc = s.increment != null ? ` (+${s.increment})` : ''
+    return t('workout.rec_weight', { weight: s.suggested_weight_kg, inc })
+  }
+  if (s.type === 'reps' && s.suggested_reps != null) {
+    return t('workout.rec_reps', { reps: s.suggested_reps })
+  }
+  return null
+})
+
+// Progress highlight (#3): compare this logged set vs the same set last session.
+// Uses estimated 1RM (Epley) so heavier-but-fewer-reps is judged correctly.
+// null = not logged / warmup / no comparable history.
+const progressStatus = computed<'up' | 'same' | 'down' | null>(() => {
+  if (props.isWarmup) return null
+  const cur = props.loggedSet
+  const pf = props.preFillSet
+  if (!cur || !pf) return null
+  if (cur.weight_kg == null || cur.reps == null || pf.weight_kg == null || pf.reps == null) return null
+  if (cur.weight_kg === pf.weight_kg && cur.reps === pf.reps) return 'same'
+  const e1rm = (w: number, r: number) => w * (1 + r / 30)
+  const now = e1rm(cur.weight_kg, cur.reps)
+  const prev = e1rm(pf.weight_kg, pf.reps)
+  if (now > prev) return 'up'
+  if (now < prev) return 'down'
+  return 'same'
+})
 
 const weightValue = ref<number | null>(getInitialWeight())
 const repsValue = ref<number | null>(getInitialReps())
@@ -159,7 +204,13 @@ function parseNumber(val: string): number | null {
     <div
       class="flex items-center gap-2 px-3 py-2.5 rounded-lg min-h-[44px] transition-colors"
       :class="[
-        isEditing ? 'bg-blue-50' : isLogged ? 'bg-green-50/60' : isWarmup ? 'bg-gray-50' : 'bg-white',
+        isEditing ? 'bg-blue-50'
+          : isLogged
+            ? (progressStatus === 'up' ? 'bg-emerald-50'
+              : progressStatus === 'down' ? 'bg-rose-50'
+              : progressStatus === 'same' ? 'bg-gray-100/70'
+              : 'bg-green-50/60')
+          : isWarmup ? 'bg-gray-50' : 'bg-white',
         !isLogged && 'cursor-pointer hover:bg-gray-50',
         isLogged && !isEditing && 'cursor-pointer'
       ]"
@@ -275,8 +326,21 @@ function parseNumber(val: string): number | null {
           </svg>
         </div>
 
+        <!-- Progress vs last session (#3) -->
+        <span
+          v-if="progressStatus === 'up'"
+          class="flex-shrink-0 ml-auto text-emerald-600 text-sm font-bold leading-none"
+        >▲</span>
+        <span
+          v-else-if="progressStatus === 'down'"
+          class="flex-shrink-0 ml-auto text-rose-500 text-sm font-bold leading-none"
+        >▼</span>
+
         <!-- Checkmark -->
-        <div class="flex-shrink-0 ml-auto">
+        <div
+          class="flex-shrink-0"
+          :class="progressStatus === 'up' || progressStatus === 'down' ? 'ml-2' : 'ml-auto'"
+        >
           <button
             v-if="!isLogged"
             class="w-8 h-8 flex items-center justify-center rounded-full border-2 border-gray-300 text-gray-400 hover:border-green-500 hover:text-green-500 transition-colors"
@@ -297,6 +361,20 @@ function parseNumber(val: string): number | null {
           </button>
         </div>
       </template>
+    </div>
+
+    <!-- Sub-line: "last time" reference (#1) + progression recommendation (#2) -->
+    <div
+      v-if="lastTimeText || recommendationText"
+      class="pl-[3.25rem] pr-3 pb-1 -mt-0.5 text-[11px] leading-none select-none flex items-center gap-1.5 flex-wrap"
+    >
+      <span v-if="lastTimeText" class="text-gray-400">
+        {{ t('workout.last_time') }} {{ lastTimeText }}
+      </span>
+      <span v-if="lastTimeText && recommendationText" class="text-gray-300">&middot;</span>
+      <span v-if="recommendationText" class="text-emerald-600 font-medium">
+        {{ recommendationText }}
+      </span>
     </div>
 
     <!-- Swipe action buttons (revealed on swipe left) -->

@@ -74,6 +74,22 @@ class WorkoutStartResponse(BaseModel):
     suggestions: dict[str, SuggestionInfo] = {}
 
 
+class WorkoutActiveResponse(BaseModel):
+    """Active (in-progress) workout plus the history context the UI needs.
+
+    Mirrors WorkoutStartResponse but carries the already-logged sets. Returning
+    pre_fill + suggestions here (not only on POST /workouts) is what keeps the
+    "last time" reference and progression suggestion alive across a page reload.
+    """
+    id: str
+    program_id: str | None
+    started_at: datetime
+    completed_at: datetime | None
+    sets: list[WorkoutSetRead] = []
+    pre_fill: dict[str, list[PreFillSet]] = {}
+    suggestions: dict[str, SuggestionInfo] = {}
+
+
 class WorkoutListResponse(BaseModel):
     items: list[WorkoutRead]
 
