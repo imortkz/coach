@@ -7,14 +7,28 @@ such row keyed to (user, null, null), so a user with 2+ programs hit a
 DuplicateKeyError and the app never started (nginx 502). PR-A1 makes the
 index non-unique and backfills the fields instead. PR-A2 flips to unique
 (safe after backfill) and wires version increment into the update route.
+
+PR-A2 hotfix: flipping the existing non-unique index to unique crashed the
+deploy with IndexKeySpecsConflict (code 86) — Mongo's createIndex cannot
+change the options of an existing same-named index. init_db now drops the
+stale non-unique index and stamps the data BEFORE init_beanie rebuilds it
+unique. TestIndexTransition covers exactly this prod-shaped path.
 """
 
 import pytest
-from pymongo import AsyncMongoClient
+from beanie import init_beanie
+from pymongo import ASCENDING, DESCENDING, AsyncMongoClient, IndexModel
 from pymongo.errors import BulkWriteError
 
-from app.database import backfill_program_lineage, sync_program_version_field
+from app.auth.models import User
+from app.database import (
+    backfill_program_lineage,
+    drop_conflicting_program_index,
+    sync_program_version_field,
+)
+from app.exercises.models import Exercise
 from app.programs.models import Program
+from app.workouts.models import Setting, Workout
 
 
 def _legacy_program(pid: str, user_id: str, name: str) -> dict:
@@ -60,6 +74,54 @@ class TestProgramLineageBackfill:
                 _legacy_program("leg-a", test_user.id, "A"),
                 _legacy_program("leg-b", test_user.id, "B"),
             ])
+
+
+class TestIndexTransition:
+    """Reproduce the prod-shaped A1→A2 path the original tests missed: the
+    non-unique index already exists (built by A1) AND legacy rows are present,
+    then the A2 startup sequence runs. Must not crash; index ends up unique."""
+
+    @pytest.mark.asyncio
+    async def test_drop_conflicting_index_then_init_beanie_builds_unique(self):
+        client = AsyncMongoClient("mongodb://localhost:27017")
+        db = client["gymcoach_idx_transition_test"]
+        programs = db["programs"]
+        try:
+            # Clean slate, then recreate the *A1 prod state*: a non-unique
+            # user_program_version index over two same-user legacy rows that
+            # still carry null program_id/version.
+            await programs.drop()
+            await programs.create_indexes([
+                IndexModel(
+                    [("user_id", ASCENDING), ("program_id", ASCENDING), ("version", DESCENDING)],
+                    name="user_program_version",  # non-unique, as A1 created it
+                )
+            ])
+            await programs.insert_many([
+                _legacy_program("leg-x", "same-user", "X"),
+                _legacy_program("leg-y", "same-user", "Y"),
+            ])
+
+            # The A2 startup sequence (mirrors init_db ordering).
+            assert await drop_conflicting_program_index(programs) is True
+            assert await backfill_program_lineage(programs) == 2
+            await sync_program_version_field(programs)
+
+            # init_beanie now rebuilds the index as unique over clean data —
+            # this raised IndexKeySpecsConflict before the hotfix.
+            await init_beanie(
+                database=db,
+                document_models=[User, Exercise, Program, Workout, Setting],
+            )
+
+            info = await programs.index_information()
+            assert info["user_program_version"].get("unique") is True
+
+            # drop is now a no-op (index already unique).
+            assert await drop_conflicting_program_index(programs) is False
+        finally:
+            await programs.drop()
+            await client.aclose()
 
 
 class TestSyncProgramVersionField:
