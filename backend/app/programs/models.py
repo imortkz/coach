@@ -45,13 +45,11 @@ class Program(Document):
     exercises: list[ProgramExercise] = []
     versions: list[ProgramVersion] = []
 
-    # --- Versioned-rows groundwork (expand phase, PR-A1) ---
-    # Additive only: lineage id + per-row version, NOT yet used by routes and
-    # deliberately NON-UNIQUE here. The unique constraint is added in a later
-    # PR once every legacy row is backfilled — declaring it unique now would
-    # rebuild the index against rows missing these fields (all -> null) and
-    # crash init_beanie with DuplicateKeyError (this is exactly what took prod
-    # down in #48). See backfill_program_lineage().
+    # Lineage: stable program identity across edits (program_id) and per-row
+    # version number. Unique index is safe in the contract phase (PR-A2)
+    # because every existing row was backfilled with program_id + version in
+    # the prior expand phase (PR-A1). Routes increment `version` in sync with
+    # `current_version` on each edit.
     program_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     version: int = 1
 
@@ -62,5 +60,6 @@ class Program(Document):
             IndexModel(
                 [("user_id", ASCENDING), ("program_id", ASCENDING), ("version", DESCENDING)],
                 name="user_program_version",
+                unique=True,
             ),
         ]

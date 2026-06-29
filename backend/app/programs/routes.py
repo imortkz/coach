@@ -165,6 +165,7 @@ async def update_program(
     program.rest_timer_disabled = data.rest_timer_disabled
     program.exercises = await _resolve_exercises(data.exercises)
     program.current_version += 1
+    program.version = program.current_version  # keep lineage field in sync
 
     await program.save()
     return await _program_to_read(program)
