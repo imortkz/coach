@@ -28,6 +28,28 @@ async def init_db(
         document_models=[User, Exercise, Program, Workout, Setting],
     )
 
+    await backfill_program_lineage()
+
+
+async def backfill_program_lineage() -> int:
+    """Stamp lineage fields onto legacy program rows. Idempotent.
+
+    Programs created before the versioned-rows groundwork have no ``program_id``
+    / ``version``. Set ``program_id = _id`` (the row becomes its own lineage
+    root) and ``version = 1`` for any such row. Only matches rows missing the
+    field, so it is safe to run on every startup and a no-op once migrated.
+
+    Runs AFTER init_beanie (the new index is non-unique, so it builds fine over
+    the not-yet-stamped rows; this just fills them in). Returns rows modified.
+    """
+    from app.programs.models import Program
+
+    result = await Program.get_pymongo_collection().update_many(
+        {"program_id": {"$exists": False}},
+        [{"$set": {"program_id": "$_id", "version": 1}}],
+    )
+    return result.modified_count
+
 
 async def close_db() -> None:
     """Close the MongoDB client."""
