@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useHistoryStore } from '@/stores/history'
 import { useProgramsStore } from '@/stores/programs'
 import WorkoutCard from '@/components/history/WorkoutCard.vue'
+import ProgramVersionModal from '@/components/history/ProgramVersionModal.vue'
 
 const { t } = useI18n()
 const historyStore = useHistoryStore()
@@ -11,6 +12,13 @@ const programsStore = useProgramsStore()
 
 // Track expanded workout IDs
 const expandedIds = ref<Set<string>>(new Set())
+
+// Program-version snapshot modal (M010)
+const viewingVersion = ref<{ programId: string; version: number } | null>(null)
+
+function onViewVersion(programId: string, version: number) {
+  viewingVersion.value = { programId, version }
+}
 
 // Initial load state (vs. load-more)
 const initialLoading = ref(true)
@@ -113,6 +121,7 @@ onMounted(async () => {
         :program-name="getProgramName(workout.program_id)"
         @toggle="toggleExpand(workout.id)"
         @delete="onDeleteWorkout(workout.id)"
+        @view-version="onViewVersion"
       />
 
       <!-- Load more button -->
@@ -126,5 +135,12 @@ onMounted(async () => {
         </button>
       </div>
     </div>
+
+    <ProgramVersionModal
+      v-if="viewingVersion"
+      :program-id="viewingVersion.programId"
+      :version="viewingVersion.version"
+      @close="viewingVersion = null"
+    />
   </div>
 </template>

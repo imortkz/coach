@@ -68,6 +68,12 @@ export default {
     bodyweight: 'BW',
     warmup_short: '(warm-up)',
     reps_short: 'reps',
+    version_badge: 'v{n}',
+    version_current: 'current',
+    version_view_title: 'Program v{n}',
+    version_loading: 'Loading program version...',
+    version_failed: 'Failed to load program version',
+    version_close: 'Close',
   },
   login: {
     tagline: 'Your personal training companion',
