@@ -37,9 +37,18 @@ export interface ProgramExercise {
 export interface Workout {
   id: string
   program_id: string | null
+  program_version: number | null
   started_at: string
   completed_at: string | null
   sets: WorkoutSet[]
+}
+
+export interface ProgramVersionSnapshot {
+  version: number
+  is_current: boolean
+  name: string
+  rest_timer_disabled: boolean
+  exercises: ProgramExercise[]
 }
 
 export interface WorkoutSet {

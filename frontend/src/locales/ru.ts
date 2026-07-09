@@ -68,6 +68,12 @@ export default {
     bodyweight: 'СВ',
     warmup_short: '(разминка)',
     reps_short: 'повт.',
+    version_badge: 'в{n}',
+    version_current: 'текущая',
+    version_view_title: 'Программа в{n}',
+    version_loading: 'Загрузка версии программы...',
+    version_failed: 'Не удалось загрузить версию программы',
+    version_close: 'Закрыть',
   },
   login: {
     tagline: 'Твой персональный фитнес-помощник',

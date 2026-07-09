@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   toggle: []
   delete: []
+  'view-version': [programId: string, version: number]
 }>()
 
 const { t } = useI18n()
@@ -94,20 +95,37 @@ function formatWeight(weight_kg: number | null, reps: number | null): string {
   const r = reps !== null ? `${reps} ${t('history.reps_short')}` : '-'
   return `${w} x ${r}`
 }
+
+function onVersionBadgeClick() {
+  if (props.workout.program_id === null || props.workout.program_version === null) return
+  emit('view-version', props.workout.program_id, props.workout.program_version)
+}
 </script>
 
 <template>
   <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
     <!-- Card header (always visible) -->
     <div class="flex items-stretch">
-    <button
-      class="flex-1 min-w-0 flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+    <div
+      role="button"
+      tabindex="0"
+      class="flex-1 min-w-0 flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left cursor-pointer"
       @click="emit('toggle')"
+      @keydown.enter.space.prevent="emit('toggle')"
     >
       <div class="flex flex-col gap-0.5 min-w-0">
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold text-gray-900">{{ formattedDate }}</span>
           <span v-if="programName" class="text-xs text-gray-500 truncate">{{ programName }}</span>
+          <button
+            v-if="workout.program_id !== null && workout.program_version !== null"
+            data-testid="version-badge"
+            class="text-[10px] font-medium text-blue-600 bg-blue-50 rounded-full px-1.5 py-0.5 hover:bg-blue-100 transition-colors shrink-0"
+            :title="t('history.version_view_title', { n: workout.program_version })"
+            @click.stop="onVersionBadgeClick"
+          >
+            {{ t('history.version_badge', { n: workout.program_version }) }}
+          </button>
         </div>
         <div class="flex items-center gap-3 text-xs text-gray-400">
           <span>{{ t('programs.exercise_count', exerciseCount) }}</span>
@@ -127,7 +145,7 @@ function formatWeight(weight_kg: number | null, reps: number | null): string {
       >
         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
-    </button>
+    </div>
     <button
       class="shrink-0 px-3 flex items-center text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
       :aria-label="t('history.delete')"

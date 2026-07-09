@@ -1,7 +1,7 @@
 import { apiFetch } from '@/lib/apiFetch'
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { Program } from '@/types'
+import type { Program, ProgramVersionSnapshot } from '@/types'
 
 const API_BASE = '/api/programs'
 
@@ -88,5 +88,21 @@ export const useProgramsStore = defineStore('programs', () => {
     await fetchPrograms()
   }
 
-  return { programs, loading, error, fetchPrograms, fetchProgram, createProgram, updateProgram, deleteProgram }
+  async function fetchProgramVersion(id: string, version: number): Promise<ProgramVersionSnapshot> {
+    const res = await apiFetch(`${API_BASE}/${id}/versions/${version}`)
+    if (!res.ok) throw new Error(`Failed to fetch program version: ${res.statusText}`)
+    return await res.json()
+  }
+
+  return {
+    programs,
+    loading,
+    error,
+    fetchPrograms,
+    fetchProgram,
+    createProgram,
+    updateProgram,
+    deleteProgram,
+    fetchProgramVersion,
+  }
 })

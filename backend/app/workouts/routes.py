@@ -78,6 +78,7 @@ def _workout_to_read(
     return WorkoutRead(
         id=w.id,
         program_id=w.program_id,
+        program_version=w.program_version,
         started_at=w.started_at,
         completed_at=w.completed_at,
         sets=[_set_to_read(s, w.id, name_ru_map) for s in w.sets],

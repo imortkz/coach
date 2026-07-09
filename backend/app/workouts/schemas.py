@@ -44,6 +44,7 @@ class WorkoutCreate(BaseModel):
 class WorkoutRead(BaseModel):
     id: str
     program_id: str | None
+    program_version: int | None
     started_at: datetime
     completed_at: datetime | None
     sets: list[WorkoutSetRead] = []

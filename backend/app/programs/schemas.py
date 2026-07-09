@@ -33,6 +33,15 @@ class ProgramRead(BaseModel):
     exercises: list[ProgramExerciseRead] = []
 
 
+class ProgramVersionRead(BaseModel):
+    """Read-only snapshot of a program as it looked at a given version."""
+    version: int
+    is_current: bool
+    name: str
+    rest_timer_disabled: bool = False
+    exercises: list[ProgramExerciseRead] = []
+
+
 # --- Create / Update schemas ---
 
 
