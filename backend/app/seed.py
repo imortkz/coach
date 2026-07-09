@@ -306,6 +306,7 @@ SEED_EXERCISES = [
 # ── Exercise demo GIFs (self-hosted under frontend/public/gifs/, served same-origin at /gifs/*).
 # Matched from the hasaneyldrm/exercises-dataset catalog; unmatched exercises keep gif_url=None.
 GIF_URLS: dict[str, str] = {
+    '21s Curl': "/gifs/21s-curl.gif",
     'Ab Wheel Rollout': "/gifs/ab-wheel-rollout.gif",
     'Abductor Machine': "/gifs/abductor-machine.gif",
     'Adductor Machine': "/gifs/adductor-machine.gif",
@@ -336,6 +337,7 @@ GIF_URLS: dict[str, str] = {
     'Chest-Supported Dumbbell Row': "/gifs/chest-supported-dumbbell-row.gif",
     'Chin-Up': "/gifs/chin-up.gif",
     'Close-Grip Bench Press': "/gifs/close-grip-bench-press.gif",
+    'Close-Grip Lat Pulldown': "/gifs/close-grip-lat-pulldown.gif",
     'Concentration Curl': "/gifs/concentration-curl.gif",
     'Crunch': "/gifs/crunch.gif",
     'Dead Bug': "/gifs/dead-bug.gif",
@@ -349,11 +351,13 @@ GIF_URLS: dict[str, str] = {
     'Dragon Flag': "/gifs/dragon-flag.gif",
     'Dumbbell Curl': "/gifs/dumbbell-curl.gif",
     'Dumbbell Fly': "/gifs/dumbbell-fly.gif",
+    'Dumbbell Overhead Tricep Extension': "/gifs/dumbbell-overhead-tricep-extension.gif",
     'Dumbbell Pullover': "/gifs/dumbbell-pullover.gif",
     'Dumbbell Row': "/gifs/dumbbell-row.gif",
     'Dumbbell Shoulder Press': "/gifs/dumbbell-shoulder-press.gif",
     'Dumbbell Shrug': "/gifs/dumbbell-shrug.gif",
     'EZ-Bar Curl': "/gifs/ez-bar-curl.gif",
+    'Face Pull': "/gifs/face-pull.gif",
     "Farmer's Carry": "/gifs/farmer-s-carry.gif",
     'Flat Dumbbell Press': "/gifs/flat-dumbbell-press.gif",
     'Front Raise': "/gifs/front-raise.gif",
@@ -414,6 +418,7 @@ GIF_URLS: dict[str, str] = {
     'Seated Leg Curl': "/gifs/seated-leg-curl.gif",
     'Side Plank': "/gifs/side-plank.gif",
     'Single-Arm Cable Row': "/gifs/single-arm-cable-row.gif",
+    'Single-Leg Romanian Deadlift': "/gifs/single-leg-romanian-deadlift.gif",
     'Skull Crusher': "/gifs/skull-crusher.gif",
     'Smith Machine Bench Press': "/gifs/smith-machine-bench-press.gif",
     'Smith Machine Squat': "/gifs/smith-machine-squat.gif",
