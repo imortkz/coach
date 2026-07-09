@@ -29,6 +29,7 @@ export default {
     add: 'Добавить',
     save: 'Сохранить',
     cancel: 'Отмена',
+    how_to: 'Как делается',
   },
   workout: {
     title: 'Тренировка',

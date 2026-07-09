@@ -33,6 +33,7 @@ const emit = defineEmits<{
 const workoutsStore = useWorkoutsStore()
 const showRemoveConfirm = ref(false)
 const showMenu = ref(false)
+const showGif = ref(false)
 
 // Build the list of set rows: template sets + any extra logged sets beyond template count
 const setRows = computed(() => {
@@ -181,6 +182,24 @@ function cancelRemove() {
         <h3 class="font-semibold text-gray-900">{{ displayName(exercise) }}</h3>
         <p class="text-xs text-gray-500 mt-0.5">{{ t('muscle_groups.' + exercise.muscle_group) }} &middot; {{ exercise.equipment }}</p>
       </div>
+      <div class="flex items-center gap-1">
+      <!-- How-to (demo gif) button — only when a demo gif exists -->
+      <button
+        v-if="exercise.gif_url"
+        data-testid="how-to-btn"
+        class="flex items-center gap-1 h-8 px-2 text-xs font-medium rounded-lg transition-colors"
+        :class="showGif ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'"
+        :aria-pressed="showGif"
+        :title="t('exercises.how_to')"
+        @click="showGif = !showGif"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <circle cx="12" cy="12" r="9" stroke-width="2" />
+        </svg>
+        <span>{{ t('exercises.how_to') }}</span>
+      </button>
       <!-- Menu button -->
       <div class="relative">
         <button
@@ -212,6 +231,18 @@ function cancelRemove() {
           @click="showMenu = false"
         />
       </div>
+      </div>
+    </div>
+
+    <!-- Demo gif (revealed on request) -->
+    <div v-if="showGif && exercise.gif_url" class="px-4 py-3 bg-gray-50/60 border-b border-gray-100">
+      <img
+        data-testid="how-to-gif"
+        :src="exercise.gif_url"
+        :alt="displayName(exercise)"
+        class="w-full max-w-xs mx-auto rounded-lg block"
+        @error="showGif = false"
+      />
     </div>
 
     <!-- Remove confirmation -->
