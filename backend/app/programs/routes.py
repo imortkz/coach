@@ -13,6 +13,7 @@ from app.programs.schemas import (
     ProgramRead,
     ProgramSetRead,
     ProgramUpdate,
+    ProgramVersionRead,
 )
 
 router = APIRouter(prefix="/programs", tags=["programs"])
@@ -42,10 +43,11 @@ async def _resolve_exercises(exercises_data: list) -> list[ProgramExercise]:
     return result
 
 
-async def _program_to_read(program: Program) -> ProgramRead:
-    """Convert a Program document to ProgramRead schema with exercise details."""
+async def _exercises_to_read(exercises: list[ProgramExercise]) -> list[ProgramExerciseRead]:
+    """Resolve embedded ProgramExercise docs to ProgramExerciseRead, joining the
+    live Exercise catalog for name_ru/gif_url where the exercise still exists."""
     exercises_read = []
-    for pe in program.exercises:
+    for pe in exercises:
         # Denormalized fallback — used only when the master Exercise has
         # been deleted. The embedded copy carries only the English fields,
         # so name_ru / gif_url are unavailable in this branch.
@@ -88,13 +90,18 @@ async def _program_to_read(program: Program) -> ProgramRead:
             exercise=exercise_read,
         ))
 
+    return exercises_read
+
+
+async def _program_to_read(program: Program) -> ProgramRead:
+    """Convert a Program document to ProgramRead schema with exercise details."""
     return ProgramRead(
         id=program.id,
         name=program.name,
         created_at=program.created_at,
         rest_timer_disabled=program.rest_timer_disabled,
         current_version=program.current_version,
-        exercises=exercises_read,
+        exercises=await _exercises_to_read(program.exercises),
     )
 
 
@@ -119,6 +126,43 @@ async def get_program(
     if not program or program.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Program not found")
     return await _program_to_read(program)
+
+
+@router.get("/{program_id}/versions/{version}", response_model=ProgramVersionRead)
+async def get_program_version(
+    program_id: str,
+    version: int,
+    current_user: User = Depends(get_current_user),
+):
+    """Read-only snapshot of how a program looked at a given version.
+
+    `current_version` is served from the live program row; older versions come
+    from the `versions[]` archive written on each edit (see update_program).
+    """
+    program = await Program.get(program_id)
+    if not program or program.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Program not found")
+
+    if version == program.current_version:
+        return ProgramVersionRead(
+            version=version,
+            is_current=True,
+            name=program.name,
+            rest_timer_disabled=program.rest_timer_disabled,
+            exercises=await _exercises_to_read(program.exercises),
+        )
+
+    snapshot = next((v for v in program.versions if v.version == version), None)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Program version not found")
+
+    return ProgramVersionRead(
+        version=version,
+        is_current=False,
+        name=snapshot.name,
+        rest_timer_disabled=snapshot.rest_timer_disabled,
+        exercises=await _exercises_to_read(snapshot.exercises),
+    )
 
 
 @router.post("/", response_model=ProgramRead, status_code=201)
