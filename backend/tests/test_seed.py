@@ -100,3 +100,39 @@ async def test_seed_upsert_updates_existing_doc(db):
     assert doc_after is not None
     assert doc_after.id == original_id
     assert doc_after.name_ru == "Становая тяга"
+
+
+@pytest.mark.asyncio
+async def test_seed_populates_gif_urls(db):
+    """Seeded exercises receive a self-hosted gif_url from the GIF_URLS map."""
+    from app.seed import GIF_URLS
+
+    await seed_exercises()
+
+    bench = await Exercise.find_one({"name": "Barbell Bench Press", "user_id": None})
+    assert bench is not None
+    assert bench.gif_url == "/gifs/barbell-bench-press.gif"
+
+    # The bulk of the library should carry a demo gif after seeding.
+    with_gif = await Exercise.find(
+        {"user_id": None, "gif_url": {"$ne": None}}
+    ).count()
+    assert with_gif >= 120
+    assert len(GIF_URLS) >= 120
+
+
+def test_gif_url_files_exist():
+    """Every GIF_URLS entry points to an existing self-hosted gif file."""
+    from pathlib import Path
+
+    from app.seed import GIF_URLS
+
+    gifs_dir = Path(__file__).resolve().parents[2] / "frontend" / "public" / "gifs"
+    if not gifs_dir.is_dir():
+        pytest.skip("frontend/public/gifs not present in this checkout")
+
+    missing = [
+        path for path in GIF_URLS.values()
+        if not (gifs_dir / Path(path).name).is_file()
+    ]
+    assert not missing, f"missing gif files for: {missing[:5]}"

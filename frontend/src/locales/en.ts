@@ -29,6 +29,7 @@ export default {
     add: 'Add',
     save: 'Save',
     cancel: 'Cancel',
+    how_to: 'How to',
   },
   workout: {
     title: 'Workout',
