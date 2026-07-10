@@ -16,6 +16,7 @@ const props = defineProps<{
   isExtra?: boolean
   suggestion?: SuggestionInfo | null
   showSuggestion?: boolean
+  isLastTwoWorking?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,7 +27,7 @@ const emit = defineEmits<{
     reps: number | null
     is_warmup: boolean
   }]
-  update: [payload: { setId: string; weight_kg: number | null; reps: number | null }]
+  update: [payload: { setId: string; weight_kg: number | null; reps: number | null; rpe: number | null }]
   delete: [setId: string]
   removeExtra: [setNumber: number]
   removeTemplate: [payload: { exerciseId: string; setNumber: number }]
@@ -104,7 +105,35 @@ const progressStatus = computed<'up' | 'same' | 'down' | null>(() => {
 
 const weightValue = ref<number | null>(getInitialWeight())
 const repsValue = ref<number | null>(getInitialReps())
+const rpeValue = ref<number | null>(props.loggedSet?.rpe ?? null)
 const isLogged = ref(props.loggedSet !== null)
+
+// RPE prompt: shown after logging one of the last 2 working sets, until rated.
+const showRpePicker = computed(() => {
+  return isLogged.value && !props.isWarmup && props.isLastTwoWorking && rpeValue.value == null
+})
+
+const rpeText = computed<string | null>(() => {
+  if (!isLogged.value || rpeValue.value == null) return null
+  return t('workout.rpe_value', { rpe: rpeValue.value })
+})
+
+// Rest before this set, derived from the previous set's logged_at (backend-computed).
+const restText = computed<string | null>(() => {
+  if (!isLogged.value || !props.loggedSet || props.loggedSet.rest_seconds == null) return null
+  return t('workout.rest_seconds', { seconds: props.loggedSet.rest_seconds })
+})
+
+function pickRpe(value: number) {
+  rpeValue.value = value
+  if (!props.loggedSet) return
+  emit('update', {
+    setId: props.loggedSet.id,
+    weight_kg: props.loggedSet.weight_kg,
+    reps: props.loggedSet.reps,
+    rpe: value,
+  })
+}
 
 // Edit mode
 const isEditing = ref(false)
@@ -127,11 +156,13 @@ watch(() => props.loggedSet, (newVal) => {
   if (newVal) {
     weightValue.value = newVal.weight_kg
     repsValue.value = newVal.reps
+    rpeValue.value = newVal.rpe
     isLogged.value = true
   } else {
     isLogged.value = false
     weightValue.value = getInitialWeight()
     repsValue.value = getInitialReps()
+    rpeValue.value = null
   }
 })
 
@@ -164,6 +195,7 @@ function saveEdit() {
     setId: props.loggedSet.id,
     weight_kg: editWeight.value,
     reps: editReps.value,
+    rpe: rpeValue.value,
   })
   isEditing.value = false
 }
@@ -175,6 +207,7 @@ function saveInline() {
     setId: props.loggedSet.id,
     weight_kg: weightValue.value,
     reps: repsValue.value,
+    rpe: rpeValue.value,
   })
 }
 
@@ -363,9 +396,9 @@ function parseNumber(val: string): number | null {
       </template>
     </div>
 
-    <!-- Sub-line: "last time" reference (#1) + progression recommendation (#2) -->
+    <!-- Sub-line: "last time" reference (#1) + progression recommendation (#2) + rest/RPE -->
     <div
-      v-if="lastTimeText || recommendationText"
+      v-if="lastTimeText || recommendationText || restText || rpeText"
       class="pl-[3.25rem] pr-3 pb-1 -mt-0.5 text-[11px] leading-none select-none flex items-center gap-1.5 flex-wrap"
     >
       <span v-if="lastTimeText" class="text-gray-400">
@@ -375,6 +408,27 @@ function parseNumber(val: string): number | null {
       <span v-if="recommendationText" class="text-emerald-600 font-medium">
         {{ recommendationText }}
       </span>
+      <span v-if="(lastTimeText || recommendationText) && restText" class="text-gray-300">&middot;</span>
+      <span v-if="restText" class="text-gray-400">{{ restText }}</span>
+      <span v-if="(lastTimeText || recommendationText || restText) && rpeText" class="text-gray-300">&middot;</span>
+      <span v-if="rpeText" class="text-gray-500 font-medium">{{ rpeText }}</span>
+    </div>
+
+    <!-- RPE prompt: last 2 working sets, shown once logged and not yet rated -->
+    <div
+      v-if="showRpePicker"
+      class="pl-[3.25rem] pr-3 pb-1.5 -mt-0.5 flex items-center gap-1 flex-wrap"
+    >
+      <span class="text-[11px] text-gray-400 mr-0.5 flex-shrink-0">{{ t('workout.rpe_prompt') }}</span>
+      <button
+        v-for="n in 10"
+        :key="n"
+        type="button"
+        class="w-5 h-5 flex items-center justify-center text-[10px] font-medium rounded-full border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex-shrink-0"
+        @click.stop="pickRpe(n)"
+      >
+        {{ n }}
+      </button>
     </div>
 
     <!-- Swipe action buttons (revealed on swipe left) -->

@@ -44,6 +44,7 @@ const setRows = computed(() => {
     preFillSet: PreFillSet | null
     isWarmup: boolean
     isExtra: boolean
+    isLastTwoWorking: boolean
   }> = []
 
   // Template-defined sets (excluding skipped unlogged template sets)
@@ -63,6 +64,7 @@ const setRows = computed(() => {
       preFillSet: pf ?? null,
       isWarmup: ts.is_warmup,
       isExtra: false,
+      isLastTwoWorking: false,
     })
   }
 
@@ -80,6 +82,7 @@ const setRows = computed(() => {
       preFillSet: null,
       isWarmup: extra.is_warmup,
       isExtra: true,
+      isLastTwoWorking: false,
     })
   }
 
@@ -94,7 +97,20 @@ const setRows = computed(() => {
         preFillSet: null,
         isWarmup: false,
         isExtra: true,
+        isLastTwoWorking: false,
       })
+    }
+  }
+
+  // Last 2 working (non-warmup) sets, by set-number order, get the RPE prompt.
+  const workingSetNumbers = rows
+    .filter((r) => !r.isWarmup)
+    .map((r) => r.setNumber)
+    .sort((a, b) => a - b)
+  const lastTwo = new Set(workingSetNumbers.slice(-2))
+  for (const row of rows) {
+    if (!row.isWarmup && lastTwo.has(row.setNumber)) {
+      row.isLastTwoWorking = true
     }
   }
 
@@ -132,11 +148,12 @@ async function handleComplete(payload: {
   }
 }
 
-async function handleUpdate(payload: { setId: string; weight_kg: number | null; reps: number | null }) {
+async function handleUpdate(payload: { setId: string; weight_kg: number | null; reps: number | null; rpe: number | null }) {
   try {
     await workoutsStore.updateSet(payload.setId, {
       weight_kg: payload.weight_kg,
       reps: payload.reps,
+      rpe: payload.rpe,
     })
   } catch {
     // error is set in store
@@ -291,6 +308,7 @@ function cancelRemove() {
         :exercise-id="exercise.id"
         :suggestion="exerciseSuggestion"
         :show-suggestion="row.setNumber === suggestionSetNumber"
+        :is-last-two-working="row.isLastTwoWorking"
         @complete="handleComplete"
         @update="handleUpdate"
         @delete="handleDeleteSet"
