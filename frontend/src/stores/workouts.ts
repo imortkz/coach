@@ -92,7 +92,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
 
   async function updateSet(
     setId: string,
-    data: { weight_kg?: number | null; reps?: number | null }
+    data: { weight_kg?: number | null; reps?: number | null; rpe?: number | null }
   ): Promise<WorkoutSet> {
     if (!activeWorkout.value) throw new Error('No active workout')
     error.value = null

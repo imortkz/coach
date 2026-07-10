@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.exercises.schemas import ExerciseRead
 
@@ -16,11 +16,13 @@ class WorkoutSetCreate(BaseModel):
     weight_kg: float | None = None
     reps: int | None = None
     is_warmup: bool = False
+    rpe: int | None = Field(None, ge=1, le=10)
 
 
 class WorkoutSetUpdate(BaseModel):
     weight_kg: float | None = None
     reps: int | None = None
+    rpe: int | None = Field(None, ge=1, le=10)
 
 
 class WorkoutSetRead(BaseModel):
@@ -31,6 +33,9 @@ class WorkoutSetRead(BaseModel):
     weight_kg: float | None
     reps: int | None
     is_warmup: bool
+    logged_at: datetime
+    rpe: int | None
+    rest_seconds: int | None = None
     exercise: ExerciseRead | None = None
 
 

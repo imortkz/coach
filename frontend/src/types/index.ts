@@ -59,6 +59,9 @@ export interface WorkoutSet {
   weight_kg: number | null
   reps: number | null
   is_warmup: boolean
+  logged_at: string
+  rpe: number | null
+  rest_seconds: number | null
   exercise?: Exercise
 }
 
