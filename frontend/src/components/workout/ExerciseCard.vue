@@ -44,7 +44,7 @@ const setRows = computed(() => {
     preFillSet: PreFillSet | null
     isWarmup: boolean
     isExtra: boolean
-    isLastTwoWorking: boolean
+    showRpe: boolean
   }> = []
 
   // Template-defined sets (excluding skipped unlogged template sets)
@@ -64,7 +64,7 @@ const setRows = computed(() => {
       preFillSet: pf ?? null,
       isWarmup: ts.is_warmup,
       isExtra: false,
-      isLastTwoWorking: false,
+      showRpe: false,
     })
   }
 
@@ -82,7 +82,7 @@ const setRows = computed(() => {
       preFillSet: null,
       isWarmup: extra.is_warmup,
       isExtra: true,
-      isLastTwoWorking: false,
+      showRpe: false,
     })
   }
 
@@ -97,20 +97,21 @@ const setRows = computed(() => {
         preFillSet: null,
         isWarmup: false,
         isExtra: true,
-        isLastTwoWorking: false,
+        showRpe: false,
       })
     }
   }
 
-  // Last 2 working (non-warmup) sets, by set-number order, get the RPE prompt.
+  // Every working (non-warmup) set after the first one gets the RPE prompt,
+  // including any extra sets added beyond the plan.
   const workingSetNumbers = rows
     .filter((r) => !r.isWarmup)
     .map((r) => r.setNumber)
     .sort((a, b) => a - b)
-  const lastTwo = new Set(workingSetNumbers.slice(-2))
+  const afterFirstWorking = new Set(workingSetNumbers.slice(1))
   for (const row of rows) {
-    if (!row.isWarmup && lastTwo.has(row.setNumber)) {
-      row.isLastTwoWorking = true
+    if (!row.isWarmup && afterFirstWorking.has(row.setNumber)) {
+      row.showRpe = true
     }
   }
 
@@ -308,7 +309,7 @@ function cancelRemove() {
         :exercise-id="exercise.id"
         :suggestion="exerciseSuggestion"
         :show-suggestion="row.setNumber === suggestionSetNumber"
-        :is-last-two-working="row.isLastTwoWorking"
+        :show-rpe="row.showRpe"
         @complete="handleComplete"
         @update="handleUpdate"
         @delete="handleDeleteSet"

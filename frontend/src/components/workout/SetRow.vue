@@ -16,7 +16,7 @@ const props = defineProps<{
   isExtra?: boolean
   suggestion?: SuggestionInfo | null
   showSuggestion?: boolean
-  isLastTwoWorking?: boolean
+  showRpe?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,9 +108,9 @@ const repsValue = ref<number | null>(getInitialReps())
 const rpeValue = ref<number | null>(props.loggedSet?.rpe ?? null)
 const isLogged = ref(props.loggedSet !== null)
 
-// RPE prompt: shown after logging one of the last 2 working sets, until rated.
+// RPE prompt: shown after logging any working set past the first one, until rated.
 const showRpePicker = computed(() => {
-  return isLogged.value && !props.isWarmup && props.isLastTwoWorking && rpeValue.value == null
+  return isLogged.value && !props.isWarmup && props.showRpe && rpeValue.value == null
 })
 
 const rpeText = computed<string | null>(() => {
@@ -414,9 +414,10 @@ function parseNumber(val: string): number | null {
       <span v-if="rpeText" class="text-gray-500 font-medium">{{ rpeText }}</span>
     </div>
 
-    <!-- RPE prompt: last 2 working sets, shown once logged and not yet rated -->
+    <!-- RPE prompt: working sets after the first, shown once logged and not yet rated -->
     <div
       v-if="showRpePicker"
+      data-testid="rpe-picker"
       class="pl-[3.25rem] pr-3 pb-1.5 -mt-0.5 flex items-center gap-1 flex-wrap"
     >
       <span class="text-[11px] text-gray-400 mr-0.5 flex-shrink-0">{{ t('workout.rpe_prompt') }}</span>
