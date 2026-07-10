@@ -48,8 +48,26 @@ async def _name_ru_map(exercise_ids: set[str]) -> dict[str, str]:
     return {e.id: e.name_ru for e in exercises if e.name_ru}
 
 
+def _rest_seconds_map(sets: list[WorkoutSet]) -> dict[str, int | None]:
+    """Map each set id to seconds elapsed since the immediately-preceding set
+    in the workout, ordered by logged_at across ALL exercises. First set (by
+    logged_at) maps to None."""
+    ordered = sorted(sets, key=lambda s: s.logged_at)
+    result: dict[str, int | None] = {}
+    for i, s in enumerate(ordered):
+        if i == 0:
+            result[s.id] = None
+        else:
+            delta = (s.logged_at - ordered[i - 1].logged_at).total_seconds()
+            result[s.id] = max(0, int(delta))
+    return result
+
+
 def _set_to_read(
-    ws: WorkoutSet, workout_id: str, name_ru_map: dict[str, str] | None = None
+    ws: WorkoutSet,
+    workout_id: str,
+    name_ru_map: dict[str, str] | None = None,
+    rest_seconds: int | None = None,
 ) -> WorkoutSetRead:
     """Convert an embedded WorkoutSet to WorkoutSetRead."""
     return WorkoutSetRead(
@@ -60,6 +78,9 @@ def _set_to_read(
         weight_kg=ws.weight_kg,
         reps=ws.reps,
         is_warmup=ws.is_warmup,
+        logged_at=ws.logged_at,
+        rpe=ws.rpe,
+        rest_seconds=rest_seconds,
         exercise=ExerciseRead(
             id=ws.exercise_id,
             name=ws.exercise_name,
@@ -75,13 +96,14 @@ def _workout_to_read(
     w: Workout, name_ru_map: dict[str, str] | None = None
 ) -> WorkoutRead:
     """Convert a Workout document to WorkoutRead."""
+    rest_map = _rest_seconds_map(w.sets)
     return WorkoutRead(
         id=w.id,
         program_id=w.program_id,
         program_version=w.program_version,
         started_at=w.started_at,
         completed_at=w.completed_at,
-        sets=[_set_to_read(s, w.id, name_ru_map) for s in w.sets],
+        sets=[_set_to_read(s, w.id, name_ru_map, rest_map.get(s.id)) for s in w.sets],
     )
 
 
@@ -542,11 +564,13 @@ async def log_set(
         weight_kg=data.weight_kg,
         reps=data.reps,
         is_warmup=data.is_warmup,
+        rpe=data.rpe,
     )
     workout.sets.append(workout_set)
     await workout.save()
 
-    return _set_to_read(workout_set, workout.id)
+    rest_map = _rest_seconds_map(workout.sets)
+    return _set_to_read(workout_set, workout.id, rest_seconds=rest_map.get(workout_set.id))
 
 
 @router.put("/{workout_id}/sets/{set_id}", response_model=WorkoutSetRead)
@@ -569,9 +593,12 @@ async def update_set(
         target_set.weight_kg = data.weight_kg
     if data.reps is not None:
         target_set.reps = data.reps
+    if data.rpe is not None:
+        target_set.rpe = data.rpe
 
     await workout.save()
-    return _set_to_read(target_set, workout.id)
+    rest_map = _rest_seconds_map(workout.sets)
+    return _set_to_read(target_set, workout.id, rest_seconds=rest_map.get(target_set.id))
 
 
 @router.delete("/{workout_id}/sets/{set_id}", status_code=204)

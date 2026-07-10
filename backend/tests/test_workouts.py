@@ -154,6 +154,147 @@ class TestLogSet:
         assert data["exercise"]["name"] == "Bench Press"
 
 
+class TestSetTimingAndRpe:
+    @pytest.mark.asyncio
+    async def test_first_set_has_logged_at_and_null_rest(self, client, seed_program, seed_exercises):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 1,
+            "weight_kg": 60.0,
+            "reps": 8,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["logged_at"] is not None
+        assert data["rest_seconds"] is None
+
+    @pytest.mark.asyncio
+    async def test_second_set_has_positive_rest_seconds(self, client, db, test_user, seed_exercises):
+        """Construct a workout directly with two sets at a known logged_at gap,
+        since the API has no time-freezing hook to control real elapsed time."""
+        base_time = datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc)
+        workout = Workout(
+            user_id=test_user.id,
+            sets=[
+                WorkoutSet(
+                    exercise_id=seed_exercises[0].id,
+                    exercise_name=seed_exercises[0].name,
+                    set_number=1,
+                    weight_kg=60.0,
+                    reps=8,
+                    logged_at=base_time,
+                ),
+                WorkoutSet(
+                    exercise_id=seed_exercises[0].id,
+                    exercise_name=seed_exercises[0].name,
+                    set_number=2,
+                    weight_kg=60.0,
+                    reps=8,
+                    logged_at=base_time + timedelta(seconds=92),
+                ),
+            ],
+        )
+        await workout.insert()
+
+        resp = await client.get(f"/api/workouts/{workout.id}")
+        assert resp.status_code == 200
+        sets = sorted(resp.json()["sets"], key=lambda s: s["set_number"])
+        assert sets[0]["rest_seconds"] is None
+        assert sets[1]["rest_seconds"] == 92
+
+    @pytest.mark.asyncio
+    async def test_rest_seconds_chronological_across_exercises(self, client, db, test_user, seed_exercises):
+        """rest_seconds compares against the immediately-preceding set by
+        logged_at across ALL exercises in the workout, not per-exercise."""
+        base_time = datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc)
+        workout = Workout(
+            user_id=test_user.id,
+            sets=[
+                WorkoutSet(
+                    exercise_id=seed_exercises[0].id,
+                    exercise_name=seed_exercises[0].name,
+                    set_number=1,
+                    weight_kg=60.0,
+                    reps=8,
+                    logged_at=base_time,
+                ),
+                WorkoutSet(
+                    exercise_id=seed_exercises[1].id,
+                    exercise_name=seed_exercises[1].name,
+                    set_number=1,
+                    weight_kg=80.0,
+                    reps=5,
+                    logged_at=base_time + timedelta(seconds=45),
+                ),
+            ],
+        )
+        await workout.insert()
+
+        resp = await client.get(f"/api/workouts/{workout.id}")
+        assert resp.status_code == 200
+        by_exercise = {s["exercise_id"]: s for s in resp.json()["sets"]}
+        assert by_exercise[seed_exercises[0].id]["rest_seconds"] is None
+        assert by_exercise[seed_exercises[1].id]["rest_seconds"] == 45
+
+    @pytest.mark.asyncio
+    async def test_update_set_persists_rpe(self, client, seed_program, seed_exercises):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 1,
+            "weight_kg": 60.0,
+            "reps": 8,
+        })
+        set_id = set_resp.json()["id"]
+        assert set_resp.json()["rpe"] is None
+
+        resp = await client.put(f"/api/workouts/{workout_id}/sets/{set_id}", json={"rpe": 8})
+        assert resp.status_code == 200
+        assert resp.json()["rpe"] == 8
+
+        get_resp = await client.get(f"/api/workouts/{workout_id}")
+        logged = next(s for s in get_resp.json()["sets"] if s["id"] == set_id)
+        assert logged["rpe"] == 8
+
+    @pytest.mark.asyncio
+    async def test_rpe_out_of_range_rejected(self, client, seed_program, seed_exercises):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        set_resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 1,
+            "weight_kg": 60.0,
+            "reps": 8,
+        })
+        set_id = set_resp.json()["id"]
+
+        resp = await client.put(f"/api/workouts/{workout_id}/sets/{set_id}", json={"rpe": 11})
+        assert resp.status_code == 422
+
+        resp = await client.put(f"/api/workouts/{workout_id}/sets/{set_id}", json={"rpe": 0})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_log_set_rejects_rpe_out_of_range(self, client, seed_program, seed_exercises):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        resp = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "set_number": 1,
+            "weight_kg": 60.0,
+            "reps": 8,
+            "rpe": 11,
+        })
+        assert resp.status_code == 422
+
+
 class TestUpdateSet:
     @pytest.mark.asyncio
     async def test_update_set(self, client, seed_program, seed_exercises):

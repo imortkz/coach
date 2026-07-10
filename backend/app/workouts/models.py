@@ -19,6 +19,8 @@ class WorkoutSet(BaseModel):
     weight_kg: float | None = None
     reps: int | None = None
     is_warmup: bool = False
+    logged_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    rpe: int | None = None
 
 
 class Workout(Document):
