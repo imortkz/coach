@@ -48,11 +48,13 @@ const rowsByMember = computed(() => props.members.map((member) => ({
 })))
 
 const rounds = computed(() => {
-  const count = Math.max(0, ...rowsByMember.value.map((member) => member.rows.length))
-  return Array.from({ length: count }, (_, roundIndex) => ({
-    number: roundIndex + 1,
+  const roundNumbers = [...new Set(
+    rowsByMember.value.flatMap(({ rows }) => rows.map((row) => row.setNumber)),
+  )].sort((a, b) => a - b)
+  return roundNumbers.map((roundNumber) => ({
+    number: roundNumber,
     items: rowsByMember.value.flatMap<RoundItem>(({ member, rows }) => (
-      rows[roundIndex] ? [{ member, row: rows[roundIndex] }] : []
+      rows.flatMap((row) => row.setNumber === roundNumber ? [{ member, row }] : [])
     )),
   }))
 })

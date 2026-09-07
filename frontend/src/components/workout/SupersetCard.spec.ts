@@ -92,9 +92,11 @@ describe('SupersetCard', () => {
     expect(wrapper.emitted('setLogged')).toHaveLength(1)
   })
 
-  it('keeps the remaining rows in their numbered rounds when a member set is skipped', () => {
+  it('keeps the remaining rows in their numbered rounds when a member set is skipped', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
+    const store = useWorkoutsStore()
+    vi.spyOn(store, 'logSet').mockResolvedValue(logged('row'))
     const wrapper = mount(SupersetCard, {
       props: {
         members: [member('bench', 'Bench'), member('row', 'Row')],
@@ -117,5 +119,11 @@ describe('SupersetCard', () => {
       .toEqual([['row', 1]])
     expect(round2.findAllComponents(SetRow).map((row) => [row.props('exerciseId'), row.props('setNumber')]))
       .toEqual([['bench', 2], ['row', 2]])
+
+    round1.findComponent(SetRow).vm.$emit('complete', {
+      exercise_id: 'row', set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
+    })
+    await flushPromises()
+    expect(wrapper.emitted('setLogged')).toHaveLength(1)
   })
 })
