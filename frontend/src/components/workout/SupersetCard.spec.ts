@@ -126,4 +126,47 @@ describe('SupersetCard', () => {
     await flushPromises()
     expect(wrapper.emitted('setLogged')).toHaveLength(1)
   })
+
+  it('starts rest only when a round becomes complete after members are logged out of order', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useWorkoutsStore()
+    const logSet = vi.spyOn(store, 'logSet').mockResolvedValue(logged('row'))
+    const wrapper = mount(SupersetCard, {
+      props: {
+        members: [member('bench', 'Bench'), member('row', 'Row')],
+        loggedSets: [],
+        preFill: {},
+        extraSetNumbers: [],
+        skippedTemplateSets: new Set<string>(),
+      },
+      global: {
+        plugins: [
+          pinia,
+          createI18n({ legacy: false, locale: 'en', messages: { en } }),
+        ],
+      },
+    })
+
+    const rowFirst = wrapper.findAllComponents(SetRow).find(
+      (row) => row.props('exerciseId') === 'row' && row.props('setNumber') === 1,
+    )!
+    rowFirst.vm.$emit('complete', {
+      exercise_id: 'row', set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
+    })
+    await flushPromises()
+    expect(wrapper.emitted('setLogged')).toBeUndefined()
+
+    await wrapper.setProps({ loggedSets: [logged('row')] })
+    const benchSecond = wrapper.findAllComponents(SetRow).find(
+      (row) => row.props('exerciseId') === 'bench' && row.props('setNumber') === 1,
+    )!
+    benchSecond.vm.$emit('complete', {
+      exercise_id: 'bench', set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
+    })
+    await flushPromises()
+
+    expect(logSet).toHaveBeenCalledTimes(2)
+    expect(wrapper.emitted('setLogged')).toHaveLength(1)
+  })
 })
