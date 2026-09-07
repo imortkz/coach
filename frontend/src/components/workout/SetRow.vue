@@ -13,6 +13,7 @@ const props = defineProps<{
   templateSet: ProgramSet | null
   isWarmup: boolean
   exerciseId: string
+  isAssisted?: boolean
   isExtra?: boolean
   suggestion?: SuggestionInfo | null
   showSuggestion?: boolean
@@ -76,7 +77,8 @@ const recommendationText = computed<string | null>(() => {
   if (!hasSuggestionIndicator.value) return null
   const s = props.suggestion!
   if (s.type === 'weight' && s.suggested_weight_kg != null) {
-    const inc = s.increment != null ? ` (+${s.increment})` : ''
+    const sign = props.isAssisted ? '-' : '+'
+    const inc = s.increment != null ? ` (${sign}${s.increment})` : ''
     return t('workout.rec_weight', { weight: s.suggested_weight_kg, inc })
   }
   if (s.type === 'reps' && s.suggested_reps != null) {
@@ -95,7 +97,8 @@ const progressStatus = computed<'up' | 'same' | 'down' | null>(() => {
   if (!cur || !pf) return null
   if (cur.weight_kg == null || cur.reps == null || pf.weight_kg == null || pf.reps == null) return null
   if (cur.weight_kg === pf.weight_kg && cur.reps === pf.reps) return 'same'
-  const e1rm = (w: number, r: number) => w * (1 + r / 30)
+  // Assist machines invert the weight scale: less assist weight = more progress.
+  const e1rm = (w: number, r: number) => (props.isAssisted ? -w : w) * (1 + r / 30)
   const now = e1rm(cur.weight_kg, cur.reps)
   const prev = e1rm(pf.weight_kg, pf.reps)
   if (now > prev) return 'up'
@@ -362,10 +365,12 @@ function parseNumber(val: string): number | null {
         <!-- Progress vs last session (#3) -->
         <span
           v-if="progressStatus === 'up'"
+          data-testid="progress-up"
           class="flex-shrink-0 ml-auto text-emerald-600 text-sm font-bold leading-none"
         >▲</span>
         <span
           v-else-if="progressStatus === 'down'"
+          data-testid="progress-down"
           class="flex-shrink-0 ml-auto text-rose-500 text-sm font-bold leading-none"
         >▼</span>
 

@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 
 import ExerciseCard from '@/components/workout/ExerciseCard.vue'
 import en from '@/locales/en'
-import type { Exercise, ProgramSet, WorkoutSet } from '@/types'
+import type { Exercise, PreFillSet, ProgramSet, WorkoutSet } from '@/types'
 
 function makeI18n() {
   return createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages: { en } })
@@ -17,6 +17,7 @@ const BASE_EXERCISE: Exercise = {
   muscle_group: 'Chest',
   equipment: 'Barbell',
   is_custom: false,
+  is_assisted: false,
   name_ru: 'Жим штанги лёжа',
   gif_url: '/gifs/barbell-bench-press.gif',
 }
@@ -24,6 +25,7 @@ const BASE_EXERCISE: Exercise = {
 function mountCard(exercise: Exercise, overrides: Partial<{
   loggedSets: WorkoutSet[]
   templateSets: ProgramSet[]
+  preFillSets: PreFillSet[]
   extraSetNumbers: number[]
 }> = {}) {
   return mount(ExerciseCard, {
@@ -134,5 +136,56 @@ describe('ExerciseCard — RPE prompt visibility', () => {
       extraSetNumbers: [4],
     })
     expect(wrapper.findAll('[data-testid="rpe-picker"]')).toHaveLength(2)
+  })
+})
+
+describe('ExerciseCard — progress indicator on assist machines', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  const templateSets: ProgramSet[] = [
+    { id: 'ts-1', program_exercise_id: 'pe-1', set_number: 1, target_reps: 8, target_weight_kg: 64, is_warmup: false },
+  ]
+
+  function loggedSet(weightKg: number, reps: number): WorkoutSet {
+    return {
+      id: 'ws-1',
+      workout_id: 'w-1',
+      exercise_id: 'ex-1',
+      set_number: 1,
+      weight_kg: weightKg,
+      reps,
+      is_warmup: false,
+      logged_at: '2026-07-10T00:00:00Z',
+      rpe: null,
+      rest_seconds: null,
+    }
+  }
+
+  function preFillSet(weightKg: number, reps: number): PreFillSet {
+    return { set_number: 1, weight_kg: weightKg, reps, is_warmup: false }
+  }
+
+  // Real scenario: Val's assisted-pull-up counterweight dropped 68kg -> 64kg
+  // (same reps) — less assistance means MORE actual progress, not less.
+  it('shows a lower assist weight (same reps) as progress, not regression', () => {
+    const wrapper = mountCard({ ...BASE_EXERCISE, is_assisted: true }, {
+      templateSets,
+      loggedSets: [loggedSet(64, 8)],
+      preFillSets: [preFillSet(68, 8)],
+    })
+    expect(wrapper.find('[data-testid="progress-up"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="progress-down"]').exists()).toBe(false)
+  })
+
+  it('shows the same weight drop as regression for a non-assisted exercise', () => {
+    const wrapper = mountCard({ ...BASE_EXERCISE, is_assisted: false }, {
+      templateSets,
+      loggedSets: [loggedSet(64, 8)],
+      preFillSets: [preFillSet(68, 8)],
+    })
+    expect(wrapper.find('[data-testid="progress-down"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="progress-up"]').exists()).toBe(false)
   })
 })

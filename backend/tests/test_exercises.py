@@ -86,6 +86,19 @@ class TestCreateExercise:
         data = response.json()
         assert data["name"] == "Cable Fly"
         assert data["is_custom"] is True
+        assert data["is_assisted"] is False
+
+    @pytest.mark.asyncio
+    async def test_create_assisted_exercise(self, client, db):
+        response = await client.post("/api/exercises", json={
+            "name": "Assisted Pull-Up",
+            "muscle_group": "Back",
+            "equipment": "Machine",
+            "is_assisted": True,
+        })
+        assert response.status_code == 201
+        data = response.json()
+        assert data["is_assisted"] is True
 
     @pytest.mark.asyncio
     async def test_create_exercise_missing_name(self, client, db):
@@ -106,6 +119,16 @@ class TestUpdateExercise:
         data = response.json()
         assert data["name"] == "Updated Press"
         assert data["muscle_group"] == "Chest"  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_update_is_assisted(self, client, custom_exercise):
+        response = await client.put(f"/api/exercises/{custom_exercise.id}", json={
+            "is_assisted": True,
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_assisted"] is True
+        assert data["name"] == custom_exercise.name  # unchanged
 
     @pytest.mark.asyncio
     async def test_update_seeded_exercise_returns_403(self, client, seed_exercises):

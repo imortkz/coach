@@ -39,6 +39,7 @@ export const useExercisesStore = defineStore('exercises', () => {
     name: string
     muscle_group: string
     equipment: string
+    is_assisted?: boolean
   }): Promise<Exercise> {
     error.value = null
     const res = await apiFetch(API_BASE, {
@@ -57,7 +58,7 @@ export const useExercisesStore = defineStore('exercises', () => {
 
   async function updateExercise(
     id: string,
-    data: { name?: string; muscle_group?: string; equipment?: string },
+    data: { name?: string; muscle_group?: string; equipment?: string; is_assisted?: boolean },
   ): Promise<Exercise> {
     error.value = null
     const res = await apiFetch(`${API_BASE}/${id}`, {

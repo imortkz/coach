@@ -26,6 +26,8 @@ export default {
     add_custom_title: 'Добавить упражнение',
     name_placeholder: 'Название упражнения',
     custom_badge: 'Своё',
+    assisted_badge: 'Ассист',
+    assisted_label: 'Ассистируемый (меньше вес = сложнее)',
     add: 'Добавить',
     save: 'Сохранить',
     cancel: 'Отмена',

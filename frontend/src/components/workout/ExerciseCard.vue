@@ -307,6 +307,7 @@ function cancelRemove() {
         :is-warmup="row.isWarmup"
         :is-extra="row.isExtra"
         :exercise-id="exercise.id"
+        :is-assisted="exercise.is_assisted"
         :suggestion="exerciseSuggestion"
         :show-suggestion="row.setNumber === suggestionSetNumber"
         :show-rpe="row.showRpe"

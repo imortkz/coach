@@ -257,7 +257,12 @@ async def compute_progression(
                 reason="hit_target",
             )
         else:
-            new_weight = (current_weight or 0) + increment
+            # Assist machines (e.g. Gravitron) invert the weight scale: hitting
+            # target reps means the assist should go DOWN, not up.
+            if exercise.is_assisted:
+                new_weight = max(0.0, (current_weight or 0) - increment)
+            else:
+                new_weight = (current_weight or 0) + increment
             return SuggestionInfo(
                 type="weight",
                 suggested_weight_kg=new_weight,

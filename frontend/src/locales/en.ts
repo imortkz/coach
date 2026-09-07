@@ -26,6 +26,8 @@ export default {
     add_custom_title: 'Add custom exercise',
     name_placeholder: 'Exercise name',
     custom_badge: 'Custom',
+    assisted_badge: 'Assisted',
+    assisted_label: 'Assisted (less weight = harder)',
     add: 'Add',
     save: 'Save',
     cancel: 'Cancel',

@@ -160,6 +160,7 @@ function syntheticExercise(id: string): Exercise {
     muscle_group: '',
     equipment: '',
     is_custom: false,
+    is_assisted: false,
     name_ru: null,
     gif_url: null,
   }

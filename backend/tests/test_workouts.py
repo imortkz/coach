@@ -731,6 +731,46 @@ class TestProgression:
         assert suggestion["reason"] == "hit_target"
 
     @pytest.mark.asyncio
+    async def test_assisted_machine_suggests_lower_weight(self, client, db, test_user, seed_program):
+        """Hitting target reps on an assist machine should suggest LESS assist, not more."""
+        assisted_ex = Exercise(
+            name="Assisted Pull-Up", muscle_group="Back", equipment="Machine",
+            is_custom=True, is_assisted=True,
+        )
+        await assisted_ex.insert()
+
+        seed_program.exercises.append(ProgramExercise(
+            exercise_id=assisted_ex.id,
+            exercise_name=assisted_ex.name,
+            exercise_equipment=assisted_ex.equipment,
+            order=3,
+            sets=[ProgramSet(set_number=1, target_reps=8, target_weight_kg=None, is_warmup=False)],
+        ))
+        await seed_program.save()
+
+        w = Workout(
+            user_id=test_user.id,
+            program_id=seed_program.id,
+            started_at=datetime(2026, 3, 5, tzinfo=timezone.utc),
+            completed_at=datetime(2026, 3, 5, 1, tzinfo=timezone.utc),
+            sets=[
+                WorkoutSet(
+                    exercise_id=assisted_ex.id,
+                    exercise_name="Assisted Pull-Up",
+                    exercise_equipment="Machine",
+                    set_number=1, weight_kg=64.0, reps=8, is_warmup=False,
+                ),
+            ],
+        )
+        await w.insert()
+
+        resp = await client.get(f"/api/exercises/{assisted_ex.id}/history?program_id={seed_program.id}")
+        suggestion = resp.json()["suggestion"]
+        assert suggestion["type"] == "weight"
+        assert suggestion["suggested_weight_kg"] == 61.5  # 64 - 2.5 (Machine increment), not +2.5
+        assert suggestion["reason"] == "hit_target"
+
+    @pytest.mark.asyncio
     async def test_user_increment_override(self, client, db, test_user, seed_exercises, seed_program):
         """A per-user progression_increment_<equipment> Setting overrides the default."""
         from app.workouts.models import Setting
