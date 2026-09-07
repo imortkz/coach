@@ -58,4 +58,10 @@ describe('SessionTable — per-set RPE', () => {
     expect(wrapper.text()).not.toContain('·')
     expect(wrapper.text()).not.toContain('RPE')
   })
+
+  it('renders a recorded numeric RPE even when its value is zero', () => {
+    const wrapper = mountTable(makeSet({ rpe: 0 }))
+
+    expect(wrapper.text()).toContain('60kg x 8 · RPE 0')
+  })
 })
