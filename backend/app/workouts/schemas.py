@@ -105,6 +105,7 @@ class ExerciseSessionSet(BaseModel):
     weight_kg: float | None
     reps: int | None
     is_warmup: bool
+    rpe: int | None
 
 
 class ExerciseSession(BaseModel):

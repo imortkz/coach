@@ -96,6 +96,7 @@ export interface ExerciseSessionSet {
   weight_kg: number | null
   reps: number | null
   is_warmup: boolean
+  rpe: number | null
 }
 
 export interface ExerciseSession {

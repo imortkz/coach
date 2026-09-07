@@ -194,6 +194,7 @@ async def exercise_history(
                     weight_kg=s.weight_kg,
                     reps=s.reps,
                     is_warmup=s.is_warmup,
+                    rpe=s.rpe,
                 )
                 for s in sorted(exercise_sets, key=lambda x: x.set_number)
             ],

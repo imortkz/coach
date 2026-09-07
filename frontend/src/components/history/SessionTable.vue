@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import type { ExerciseSession } from '@/types'
 
 defineProps<{
   sessions: ExerciseSession[]
 }>()
+
+const { t } = useI18n()
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -15,6 +19,12 @@ function formatDate(dateStr: string): string {
 
 function formatWeight(kg: number | null): string {
   return kg !== null ? `${kg}kg` : 'BW'
+}
+
+function rpeLabel(set: ExerciseSession['sets'][number]): string | null {
+  return set.is_warmup || set.rpe === null
+    ? null
+    : t('workout.rpe_value', { rpe: set.rpe })
 }
 </script>
 
@@ -46,7 +56,7 @@ function formatWeight(kg: number | null): string {
                 :class="set.is_warmup ? 'text-gray-400' : 'text-gray-700'"
               >
                 <template v-if="set.is_warmup">(W) </template>
-                {{ formatWeight(set.weight_kg) }} x {{ set.reps ?? '--' }}
+                {{ formatWeight(set.weight_kg) }} x {{ set.reps ?? '--' }}<template v-if="rpeLabel(set)"> &middot; {{ rpeLabel(set) }}</template>
               </span>
             </div>
           </td>
