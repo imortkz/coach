@@ -12,6 +12,7 @@ from app.exercises.schemas import ExerciseRead
 
 class WorkoutSetCreate(BaseModel):
     exercise_id: str
+    superset_group: str | None = None
     set_number: int
     weight_kg: float | None = None
     reps: int | None = None
@@ -29,6 +30,7 @@ class WorkoutSetRead(BaseModel):
     id: str
     workout_id: str
     exercise_id: str
+    superset_group: str | None = None
     set_number: int
     weight_kg: float | None
     reps: int | None

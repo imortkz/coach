@@ -64,6 +64,7 @@ export const useWorkoutsStore = defineStore('workouts', () => {
 
   async function logSet(data: {
     exercise_id: string
+    superset_group?: string | null
     set_number: number
     weight_kg: number | null
     reps: number | null

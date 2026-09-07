@@ -41,6 +41,15 @@ async function mountAtEditRoute(uuid: string) {
   return wrapper
 }
 
+async function mountAtNewRoute() {
+  const router = makeRouter()
+  router.push('/programs/new')
+  await router.isReady()
+  return mount(ProgramEditView, {
+    global: { plugins: [router, makeI18n()] },
+  })
+}
+
 describe('ProgramEditView — UUID id is kept as a string (issue #20)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -116,5 +125,90 @@ describe('ProgramEditView — UUID id is kept as a string (issue #20)', () => {
     const passedId = updateProgram.mock.calls[0][0]
     expect(passedId).toBe(PROGRAM_UUID)
     expect(typeof passedId).toBe('string')
+  })
+
+  it('deletes an entire superset without deleting an unrelated exercise', async () => {
+    const programsStore = useProgramsStore()
+    const exercisesStore = useExercisesStore()
+    vi.spyOn(exercisesStore, 'fetchExercises').mockResolvedValue(undefined as never)
+    vi.spyOn(programsStore, 'fetchProgram').mockResolvedValue({
+      id: PROGRAM_UUID,
+      name: 'Superset Day',
+      exercises: [
+        {
+          exercise_id: 'bench',
+          order: 1,
+          superset_group: 'group-1',
+          exercise: { id: 'bench', name: 'Bench', muscle_group: 'Chest', equipment: 'Barbell' },
+          sets: [{ set_number: 1, target_reps: 8, target_weight_kg: 60, is_warmup: false }],
+        },
+        {
+          exercise_id: 'row',
+          order: 2,
+          superset_group: 'group-1',
+          exercise: { id: 'row', name: 'Row', muscle_group: 'Back', equipment: 'Barbell' },
+          sets: [{ set_number: 1, target_reps: 8, target_weight_kg: 60, is_warmup: false }],
+        },
+        {
+          exercise_id: 'squat',
+          order: 3,
+          superset_group: null,
+          exercise: { id: 'squat', name: 'Squat', muscle_group: 'Legs', equipment: 'Barbell' },
+          sets: [{ set_number: 1, target_reps: 5, target_weight_kg: 100, is_warmup: false }],
+        },
+      ],
+    } as never)
+    const updateProgram = vi.spyOn(programsStore, 'updateProgram').mockResolvedValue({} as never)
+
+    const wrapper = await mountAtEditRoute(PROGRAM_UUID)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="superset-block"]')).toHaveLength(1)
+
+    const deleteButton = wrapper
+      .find('[data-testid="superset-block"]')
+      .findAll('button')
+      .find((button) => button.text() === 'Delete')
+    await deleteButton!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text() === 'Save Program')!.trigger('click')
+    await flushPromises()
+
+    const payload = updateProgram.mock.calls[0][1]
+    expect(payload.exercises).toHaveLength(1)
+    expect(payload.exercises[0].exercise_id).toBe('squat')
+    expect(payload.exercises[0].superset_group).toBeNull()
+  })
+
+  it('creates a superset with one shared opaque group and equal set counts', async () => {
+    const programsStore = useProgramsStore()
+    const exercisesStore = useExercisesStore()
+    exercisesStore.exercises = [
+      {
+        id: 'bench', name: 'Bench', muscle_group: 'Chest', equipment: 'Barbell',
+        is_custom: false, name_ru: null, gif_url: null,
+      },
+      {
+        id: 'row', name: 'Row', muscle_group: 'Back', equipment: 'Barbell',
+        is_custom: false, name_ru: null, gif_url: null,
+      },
+    ] as never
+    vi.spyOn(exercisesStore, 'fetchExercises').mockResolvedValue(undefined as never)
+    const createProgram = vi.spyOn(programsStore, 'createProgram').mockResolvedValue({} as never)
+
+    const wrapper = await mountAtNewRoute()
+    await wrapper.findAll('button').find((button) => button.text().includes('Superset'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('Bench'))!.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('Row'))!.trigger('click')
+    await wrapper.find('[data-testid="confirm-superset"]').trigger('click')
+    expect(wrapper.findAll('[data-testid="superset-block"]')).toHaveLength(1)
+
+    await wrapper.find('input[type="text"]').setValue('Superset Day')
+    await wrapper.findAll('button').find((button) => button.text() === 'Save Program')!.trigger('click')
+    await flushPromises()
+
+    const exercises = createProgram.mock.calls[0][0].exercises
+    expect(exercises).toHaveLength(2)
+    expect(exercises[0].superset_group).toBeTruthy()
+    expect(exercises[1].superset_group).toBe(exercises[0].superset_group)
+    expect(exercises[0].sets).toHaveLength(exercises[1].sets.length)
   })
 })

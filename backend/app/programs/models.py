@@ -22,6 +22,7 @@ class ProgramExercise(BaseModel):
     exercise_name: str = ""
     exercise_muscle_group: str = ""
     exercise_equipment: str = ""
+    superset_group: str | None = None
     order: int
     sets: list[ProgramSet] = []
 

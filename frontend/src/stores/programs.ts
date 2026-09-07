@@ -10,6 +10,7 @@ export interface ProgramCreatePayload {
   rest_timer_disabled?: boolean
   exercises: {
     exercise_id: string
+    superset_group?: string | null
     order: number
     sets: {
       set_number: number

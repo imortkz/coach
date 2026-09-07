@@ -38,9 +38,10 @@ async def _create_program(client, name, exercises_payload):
     return r.json()
 
 
-def _one_exercise(ex, order=1, reps=8, weight=60.0):
+def _one_exercise(ex, order=1, reps=8, weight=60.0, superset_group=None):
     return {
         "exercise_id": ex.id,
+        "superset_group": superset_group,
         "order": order,
         "sets": [
             {"set_number": 1, "target_reps": reps, "target_weight_kg": weight, "is_warmup": False},
@@ -126,6 +127,27 @@ class TestProgramVersionSnapshot:
         assert b2["name"] == "День 1 (обновлён)"
         assert b2["exercises"][0]["exercise_id"] == seed_exercises[1].id
         assert b2["exercises"][0]["sets"][0]["target_reps"] == 5
+
+    @pytest.mark.asyncio
+    async def test_archived_version_preserves_superset_groups(self, client, seed_exercises):
+        program = await _create_program(client, "Superset", [
+            _one_exercise(seed_exercises[0], order=1, superset_group="group-1"),
+            _one_exercise(seed_exercises[1], order=2, superset_group="group-1"),
+        ])
+        updated = await client.put(f"/api/programs/{program['id']}", json={
+            "name": "No Superset",
+            "rest_timer_disabled": False,
+            "exercises": [_one_exercise(seed_exercises[2])],
+        })
+        assert updated.status_code == 200
+        assert updated.json()["current_version"] == 2
+
+        archived = await client.get(f"/api/programs/{program['id']}/versions/1")
+        assert archived.status_code == 200
+        assert [exercise["superset_group"] for exercise in archived.json()["exercises"]] == [
+            "group-1",
+            "group-1",
+        ]
 
     @pytest.mark.asyncio
     async def test_unknown_version_returns_404(self, client, seed_exercises):

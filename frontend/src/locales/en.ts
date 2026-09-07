@@ -58,6 +58,7 @@ export default {
     toast_set_deleted: 'Set deleted',
     toast_set_skipped: 'Set skipped',
     toast_workout_discarded: 'Workout discarded',
+    round_n: 'Round {n}',
   },
   history: {
     title: 'History',
@@ -80,6 +81,7 @@ export default {
     version_loading: 'Loading program version...',
     version_failed: 'Failed to load program version',
     version_close: 'Close',
+    superset: 'Superset',
   },
   login: {
     tagline: 'Your personal training companion',
@@ -118,6 +120,8 @@ export default {
     exercises_section: 'Exercises',
     no_exercises_added: 'No exercises added yet. Click "Add Exercise" below.',
     add_exercise: 'Add Exercise',
+    add_superset: 'Superset',
+    superset_label: 'Superset',
     add_set: 'Add Set',
     set_n: 'Set {n}',
     reps: 'reps',

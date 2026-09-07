@@ -65,29 +65,46 @@ interface ExerciseGroup {
   sets: { set_number: number; weight_kg: number | null; reps: number | null; is_warmup: boolean }[]
 }
 
-const exerciseGroups = computed<ExerciseGroup[]>(() => {
-  const map = new Map<string, ExerciseGroup>()
+interface HistoryBlock {
+  key: string
+  supersetGroup: string | null
+  exercises: ExerciseGroup[]
+}
+
+const historyBlocks = computed<HistoryBlock[]>(() => {
+  const blocks = new Map<string, HistoryBlock>()
   for (const s of props.workout.sets) {
     const exId = String(s.exercise_id)
-    if (!map.has(exId)) {
+    const blockKey = s.superset_group ? `superset:${s.superset_group}` : `exercise:${exId}`
+    if (!blocks.has(blockKey)) {
+      blocks.set(blockKey, {
+        key: blockKey,
+        supersetGroup: s.superset_group ?? null,
+        exercises: [],
+      })
+    }
+    const block = blocks.get(blockKey)!
+    let group = block.exercises.find((candidate) => candidate.exerciseId === exId)
+    if (!group) {
       const exercise = exercisesStore.exercises.find((e) => e.id === exId)
       const name = exercise
         ? displayName(exercise)
         : (s.exercise?.name || `Exercise #${exId}`)
-      map.set(exId, {
+      group = {
         exerciseId: exId,
         displayName: name,
         sets: [],
-      })
+      }
+      block.exercises.push(group)
     }
-    map.get(exId)!.sets.push({
+    group.sets.push({
       set_number: s.set_number,
       weight_kg: s.weight_kg,
       reps: s.reps,
       is_warmup: s.is_warmup,
     })
   }
-  return Array.from(map.values())
+  return Array.from(blocks.values())
 })
 
 function formatWeight(weight_kg: number | null, reps: number | null): string {
@@ -161,7 +178,16 @@ function onVersionBadgeClick() {
     <!-- Expanded detail section -->
     <Transition name="expand">
       <div v-if="expanded" class="border-t border-gray-100 px-4 py-3 space-y-3">
-        <div v-for="group in exerciseGroups" :key="group.exerciseId">
+        <div
+          v-for="block in historyBlocks"
+          :key="block.key"
+          :data-testid="block.supersetGroup ? 'history-superset' : 'history-exercise'"
+          :class="block.supersetGroup ? 'border border-blue-100 bg-blue-50/40 rounded-lg p-3 space-y-3' : ''"
+        >
+          <p v-if="block.supersetGroup" class="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            {{ t('history.superset') }}
+          </p>
+          <div v-for="group in block.exercises" :key="group.exerciseId">
           <RouterLink
             :to="`/exercises/${group.exerciseId}/history`"
             class="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -179,6 +205,7 @@ function onVersionBadgeClick() {
               <span v-if="s.is_warmup" class="text-gray-400 text-[10px]">{{ t('history.warmup_short') }}</span>
             </li>
           </ul>
+          </div>
         </div>
       </div>
     </Transition>

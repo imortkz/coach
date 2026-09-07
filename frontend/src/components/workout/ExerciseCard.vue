@@ -4,6 +4,7 @@ import type { Exercise, WorkoutSet, ProgramSet, PreFillSet, SuggestionInfo } fro
 import { useI18n } from 'vue-i18n'
 import { useWorkoutsStore } from '@/stores/workouts'
 import { useDisplayName } from '@/composables/useDisplayName'
+import { buildSetRows } from '@/composables/useSetRows'
 import SetRow from './SetRow.vue'
 
 const { t } = useI18n()
@@ -35,88 +36,14 @@ const showRemoveConfirm = ref(false)
 const showMenu = ref(false)
 const showGif = ref(false)
 
-// Build the list of set rows: template sets + any extra logged sets beyond template count
-const setRows = computed(() => {
-  const rows: Array<{
-    setNumber: number
-    loggedSet: WorkoutSet | null
-    templateSet: ProgramSet | null
-    preFillSet: PreFillSet | null
-    isWarmup: boolean
-    isExtra: boolean
-    showRpe: boolean
-  }> = []
-
-  // Template-defined sets (excluding skipped unlogged template sets)
-  for (const ts of props.templateSets) {
-    const logged = props.loggedSets.find(
-      (s) => s.set_number === ts.set_number && s.exercise_id === props.exercise.id
-    )
-    // Skip unlogged template sets that have been dismissed by the user
-    if (!logged && props.skippedTemplateSets.has(`${props.exercise.id}:${ts.set_number}`)) {
-      continue
-    }
-    const pf = props.preFillSets.find((p) => p.set_number === ts.set_number)
-    rows.push({
-      setNumber: ts.set_number,
-      loggedSet: logged ?? null,
-      templateSet: ts,
-      preFillSet: pf ?? null,
-      isWarmup: ts.is_warmup,
-      isExtra: false,
-      showRpe: false,
-    })
-  }
-
-  // Extra logged sets beyond template
-  const templateNumbers = new Set(props.templateSets.map((ts) => ts.set_number))
-  const extras = props.loggedSets
-    .filter((s) => !templateNumbers.has(s.set_number))
-    .sort((a, b) => a.set_number - b.set_number)
-
-  for (const extra of extras) {
-    rows.push({
-      setNumber: extra.set_number,
-      loggedSet: extra,
-      templateSet: null,
-      preFillSet: null,
-      isWarmup: extra.is_warmup,
-      isExtra: true,
-      showRpe: false,
-    })
-  }
-
-  // Pending extra sets (added by user, not yet logged)
-  const existingNumbers = new Set(rows.map((r) => r.setNumber))
-  for (const num of props.extraSetNumbers) {
-    if (!existingNumbers.has(num)) {
-      rows.push({
-        setNumber: num,
-        loggedSet: null,
-        templateSet: null,
-        preFillSet: null,
-        isWarmup: false,
-        isExtra: true,
-        showRpe: false,
-      })
-    }
-  }
-
-  // Every working (non-warmup) set after the first one gets the RPE prompt,
-  // including any extra sets added beyond the plan.
-  const workingSetNumbers = rows
-    .filter((r) => !r.isWarmup)
-    .map((r) => r.setNumber)
-    .sort((a, b) => a - b)
-  const afterFirstWorking = new Set(workingSetNumbers.slice(1))
-  for (const row of rows) {
-    if (!row.isWarmup && afterFirstWorking.has(row.setNumber)) {
-      row.showRpe = true
-    }
-  }
-
-  return rows
-})
+const setRows = computed(() => buildSetRows({
+  exerciseId: props.exercise.id,
+  templateSets: props.templateSets,
+  loggedSets: props.loggedSets,
+  preFillSets: props.preFillSets,
+  extraSetNumbers: props.extraSetNumbers,
+  skippedTemplateSets: props.skippedTemplateSets,
+}))
 
 // Suggestion for this exercise from the store
 const exerciseSuggestion = computed<SuggestionInfo | null>(() => {

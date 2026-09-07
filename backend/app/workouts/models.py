@@ -15,6 +15,7 @@ class WorkoutSet(BaseModel):
     exercise_muscle_group: str = ""
     exercise_equipment: str = ""
     exercise_is_custom: bool = False
+    superset_group: str | None = None
     set_number: int
     weight_kg: float | None = None
     reps: int | None = None

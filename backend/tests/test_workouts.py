@@ -153,6 +153,30 @@ class TestLogSet:
         assert data["exercise"] is not None
         assert data["exercise"]["name"] == "Bench Press"
 
+    @pytest.mark.asyncio
+    async def test_log_set_persists_superset_group_and_defaults_to_null(
+        self, client, seed_program, seed_exercises
+    ):
+        create_resp = await client.post("/api/workouts", json={"program_id": seed_program.id})
+        workout_id = create_resp.json()["id"]
+
+        grouped = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[0].id,
+            "superset_group": "group-1",
+            "set_number": 1,
+            "reps": 8,
+        })
+        normal = await client.post(f"/api/workouts/{workout_id}/sets", json={
+            "exercise_id": seed_exercises[1].id,
+            "set_number": 1,
+            "reps": 8,
+        })
+
+        assert grouped.status_code == 201
+        assert grouped.json()["superset_group"] == "group-1"
+        assert normal.status_code == 201
+        assert normal.json()["superset_group"] is None
+
 
 class TestSetTimingAndRpe:
     @pytest.mark.asyncio
