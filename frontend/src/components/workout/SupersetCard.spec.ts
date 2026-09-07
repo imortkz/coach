@@ -91,4 +91,31 @@ describe('SupersetCard', () => {
     await flushPromises()
     expect(wrapper.emitted('setLogged')).toHaveLength(1)
   })
+
+  it('keeps the remaining rows in their numbered rounds when a member set is skipped', () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const wrapper = mount(SupersetCard, {
+      props: {
+        members: [member('bench', 'Bench'), member('row', 'Row')],
+        loggedSets: [],
+        preFill: {},
+        extraSetNumbers: [],
+        skippedTemplateSets: new Set(['bench:1']),
+      },
+      global: {
+        plugins: [
+          pinia,
+          createI18n({ legacy: false, locale: 'en', messages: { en } }),
+        ],
+      },
+    })
+
+    const round1 = wrapper.find('[data-testid="superset-round-1"]')
+    const round2 = wrapper.find('[data-testid="superset-round-2"]')
+    expect(round1.findAllComponents(SetRow).map((row) => [row.props('exerciseId'), row.props('setNumber')]))
+      .toEqual([['row', 1]])
+    expect(round2.findAllComponents(SetRow).map((row) => [row.props('exerciseId'), row.props('setNumber')]))
+      .toEqual([['bench', 2], ['row', 2]])
+  })
 })
