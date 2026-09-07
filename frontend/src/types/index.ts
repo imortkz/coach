@@ -4,6 +4,7 @@ export interface Exercise {
   muscle_group: string
   equipment: string
   is_custom: boolean
+  is_assisted: boolean
   name_ru?: string | null
   gif_url?: string | null
 }

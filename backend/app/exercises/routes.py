@@ -25,6 +25,7 @@ def _exercise_to_read(ex: Exercise) -> ExerciseRead:
         muscle_group=ex.muscle_group,
         equipment=ex.equipment,
         is_custom=ex.is_custom,
+        is_assisted=ex.is_assisted,
         name_ru=ex.name_ru,
         gif_url=ex.gif_url,
     )
@@ -83,6 +84,7 @@ async def create_exercise(
         muscle_group=data.muscle_group,
         equipment=data.equipment,
         is_custom=True,
+        is_assisted=data.is_assisted,
     )
     await exercise.insert()
     return _exercise_to_read(exercise)
@@ -109,6 +111,8 @@ async def update_exercise(
         exercise.muscle_group = data.muscle_group
     if data.equipment is not None:
         exercise.equipment = data.equipment
+    if data.is_assisted is not None:
+        exercise.is_assisted = data.is_assisted
 
     await exercise.save()
     return _exercise_to_read(exercise)

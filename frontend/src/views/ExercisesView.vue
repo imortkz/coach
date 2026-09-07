@@ -21,12 +21,12 @@ const addingToGroup = ref<string | null>(null)
 const editingId = ref<string | null>(null)
 
 // Create form state
-const createForm = ref({ name: '', equipment: 'Barbell' })
+const createForm = ref({ name: '', equipment: 'Barbell', is_assisted: false })
 const createError = ref('')
 const createLoading = ref(false)
 
 // Edit form state
-const editForm = ref({ name: '', muscle_group: '', equipment: '' })
+const editForm = ref({ name: '', muscle_group: '', equipment: '', is_assisted: false })
 const editLoading = ref(false)
 
 const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
@@ -102,7 +102,7 @@ function fetchWithFilters() {
 // Create exercise
 function startCreate(group: string) {
   addingToGroup.value = group
-  createForm.value = { name: '', equipment: 'Barbell' }
+  createForm.value = { name: '', equipment: 'Barbell', is_assisted: false }
   createError.value = ''
   editingId.value = null
 }
@@ -124,6 +124,7 @@ async function submitCreate() {
       name: createForm.value.name.trim(),
       muscle_group: addingToGroup.value,
       equipment: createForm.value.equipment,
+      is_assisted: createForm.value.is_assisted,
     })
     addingToGroup.value = null
     createError.value = ''
@@ -141,6 +142,7 @@ function startEdit(exercise: Exercise) {
     name: exercise.name,
     muscle_group: exercise.muscle_group,
     equipment: exercise.equipment,
+    is_assisted: exercise.is_assisted,
   }
   addingToGroup.value = null
 }
@@ -157,6 +159,7 @@ async function submitEdit() {
       name: editForm.value.name.trim(),
       muscle_group: editForm.value.muscle_group,
       equipment: editForm.value.equipment,
+      is_assisted: editForm.value.is_assisted,
     })
     editingId.value = null
   } catch (e) {
@@ -285,6 +288,10 @@ onMounted(async () => {
               >
                 <option v-for="eq in EQUIPMENT_OPTIONS" :key="eq" :value="eq">{{ eq }}</option>
               </select>
+              <label class="flex items-center gap-1.5 px-1 text-sm text-gray-600 whitespace-nowrap">
+                <input v-model="createForm.is_assisted" type="checkbox" class="rounded border-gray-300" />
+                {{ t('exercises.assisted_label') }}
+              </label>
               <div class="flex gap-1">
                 <button
                   class="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
@@ -328,6 +335,10 @@ onMounted(async () => {
                   >
                     <option v-for="eq in EQUIPMENT_OPTIONS" :key="eq" :value="eq">{{ eq }}</option>
                   </select>
+                  <label class="flex items-center gap-1.5 px-1 text-sm text-gray-600 whitespace-nowrap">
+                    <input v-model="editForm.is_assisted" type="checkbox" class="rounded border-gray-300" />
+                    {{ t('exercises.assisted_label') }}
+                  </label>
                   <div class="flex gap-1">
                     <button
                       class="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
@@ -359,6 +370,12 @@ onMounted(async () => {
                     class="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0"
                   >
                     {{ t('exercises.custom_badge') }}
+                  </span>
+                  <span
+                    v-if="exercise.is_assisted"
+                    class="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0"
+                  >
+                    {{ t('exercises.assisted_badge') }}
                   </span>
                 </div>
                 <!-- Actions for custom exercises -->

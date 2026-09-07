@@ -13,6 +13,9 @@ class Exercise(Document):
     muscle_group: str
     equipment: str
     is_custom: bool = Field(default=False)
+    # Assist machines (e.g. Gravitron pull-up) invert the weight scale:
+    # a lower logged weight means less assistance and more progress.
+    is_assisted: bool = Field(default=False)
     name_ru: str | None = None
     gif_url: str | None = None
 
