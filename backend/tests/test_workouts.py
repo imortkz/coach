@@ -603,6 +603,7 @@ class TestExerciseHistory:
                         weight_kg=60.0 + i * 2.5,
                         reps=8,
                         is_warmup=(s == 1),
+                        rpe=8 if s == 2 else None,
                     )
                     for s in range(1, 4)
                 ],
@@ -618,6 +619,27 @@ class TestExerciseHistory:
         s = sessions[0]  # Most recent
         assert s["best_weight"] == 65.0
         assert s["total_volume"] == 1040.0
+        assert [set_data["rpe"] for set_data in s["sets"]] == [None, 8, None]
+
+    @pytest.mark.asyncio
+    async def test_returns_rpe_for_every_set(self, client, db, test_user, seed_exercises):
+        ex_id = seed_exercises[0].id
+        workout = Workout(
+            user_id=test_user.id,
+            completed_at=datetime(2026, 3, 1, 11, 0, 0, tzinfo=timezone.utc),
+            sets=[
+                WorkoutSet(exercise_id=ex_id, set_number=1, is_warmup=True, rpe=9),
+                WorkoutSet(exercise_id=ex_id, set_number=2, rpe=8),
+                WorkoutSet(exercise_id=ex_id, set_number=3, rpe=None),
+            ],
+        )
+        await workout.insert()
+
+        resp = await client.get(f"/api/exercises/{ex_id}/history")
+        assert resp.status_code == 200
+        sets = resp.json()["sessions"][0]["sets"]
+        assert [set_data["rpe"] for set_data in sets] == [9, 8, None]
+        assert all("rpe" in set_data for set_data in sets)
 
 
 class TestProgression:
