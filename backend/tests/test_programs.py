@@ -91,6 +91,71 @@ class TestCreateProgram:
         assert len(data["exercises"]) == 2
         assert data["exercises"][0]["exercise_id"] == data["exercises"][1]["exercise_id"]
 
+    @pytest.mark.asyncio
+    async def test_create_program_round_trips_superset_group_and_defaults_to_null(
+        self, client, seed_exercises
+    ):
+        shared_sets = [
+            {"set_number": 1, "target_reps": 10},
+            {"set_number": 2, "target_reps": 8},
+        ]
+        payload = {
+            "name": "Superset Day",
+            "exercises": [
+                {
+                    "exercise_id": seed_exercises[0].id,
+                    "superset_group": "group-1",
+                    "order": 1,
+                    "sets": shared_sets,
+                },
+                {
+                    "exercise_id": seed_exercises[2].id,
+                    "superset_group": "group-1",
+                    "order": 2,
+                    "sets": shared_sets,
+                },
+                {
+                    "exercise_id": seed_exercises[1].id,
+                    "order": 3,
+                    "sets": [{"set_number": 1, "target_reps": 5}],
+                },
+            ],
+        }
+
+        created = await client.post("/api/programs", json=payload)
+        assert created.status_code == 201, created.text
+        fetched = await client.get(f"/api/programs/{created.json()['id']}")
+        assert fetched.status_code == 200
+        groups = [exercise["superset_group"] for exercise in fetched.json()["exercises"]]
+        assert groups == ["group-1", "group-1", None]
+
+    @pytest.mark.asyncio
+    async def test_create_program_rejects_mismatched_superset_set_counts(
+        self, client, seed_exercises
+    ):
+        payload = {
+            "name": "Invalid Superset",
+            "exercises": [
+                {
+                    "exercise_id": seed_exercises[0].id,
+                    "superset_group": "group-1",
+                    "order": 1,
+                    "sets": [{"set_number": 1, "target_reps": 10}],
+                },
+                {
+                    "exercise_id": seed_exercises[1].id,
+                    "superset_group": "group-1",
+                    "order": 2,
+                    "sets": [
+                        {"set_number": 1, "target_reps": 10},
+                        {"set_number": 2, "target_reps": 10},
+                    ],
+                },
+            ],
+        }
+        response = await client.post("/api/programs", json=payload)
+        assert response.status_code == 422
+
 
 class TestListPrograms:
     @pytest.mark.asyncio
@@ -204,6 +269,33 @@ class TestUpdateProgram:
         payload = {"name": "Ghost", "exercises": []}
         response = await client.put("/api/programs/nonexistent-id", json=payload)
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_program_rejects_mismatched_superset_set_counts(
+        self, client, seed_exercises
+    ):
+        created = await client.post("/api/programs", json={
+            "name": "Original",
+            "exercises": [],
+        })
+        response = await client.put(f"/api/programs/{created.json()['id']}", json={
+            "name": "Invalid",
+            "exercises": [
+                {
+                    "exercise_id": seed_exercises[0].id,
+                    "superset_group": "group-1",
+                    "order": 1,
+                    "sets": [{"set_number": 1, "target_reps": 10}],
+                },
+                {
+                    "exercise_id": seed_exercises[1].id,
+                    "superset_group": "group-1",
+                    "order": 2,
+                    "sets": [],
+                },
+            ],
+        })
+        assert response.status_code == 422
 
 
 class TestDeleteProgram:

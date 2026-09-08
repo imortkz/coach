@@ -32,6 +32,8 @@ const formError = ref<string | null>(null)
 // Exercise picker state
 const showPicker = ref(false)
 const searchQuery = ref('')
+const pickerMode = ref<'single' | 'superset'>('single')
+const selectedSupersetIds = ref(new Set<string>())
 
 interface BuilderSet {
   target_reps: number
@@ -44,8 +46,34 @@ interface BuilderSet {
 // freeze at the moment of addExercise(); see M007-ROADMAP.md S02.
 interface BuilderExercise {
   exercise: Exercise
+  superset_group: string | null
   sets: BuilderSet[]
 }
+
+interface ExerciseBlock {
+  key: string
+  group: string | null
+  items: Array<{ ex: BuilderExercise; exIdx: number }>
+}
+
+const exerciseBlocks = computed<ExerciseBlock[]>(() => {
+  const result: ExerciseBlock[] = []
+  const grouped = new Map<string, ExerciseBlock>()
+  exercises.value.forEach((ex, exIdx) => {
+    if (ex.superset_group === null) {
+      result.push({ key: `exercise:${exIdx}`, group: null, items: [{ ex, exIdx }] })
+      return
+    }
+    let block = grouped.get(ex.superset_group)
+    if (!block) {
+      block = { key: `superset:${ex.superset_group}`, group: ex.superset_group, items: [] }
+      grouped.set(ex.superset_group, block)
+      result.push(block)
+    }
+    block.items.push({ ex, exIdx })
+  })
+  return result
+})
 
 const filteredExercises = computed(() => {
   if (!searchQuery.value.trim()) return exercisesStore.exercises
@@ -69,34 +97,80 @@ function defaultSets(): BuilderSet[] {
 function addExercise(ex: Exercise) {
   exercises.value.push({
     exercise: ex,
+    superset_group: null,
     sets: defaultSets(),
   })
+  closePicker()
+}
+
+function openPicker(mode: 'single' | 'superset') {
+  pickerMode.value = mode
+  selectedSupersetIds.value = new Set<string>()
+  showPicker.value = true
+}
+
+function closePicker() {
   showPicker.value = false
   searchQuery.value = ''
+  selectedSupersetIds.value = new Set<string>()
+}
+
+function toggleSupersetSelection(exerciseId: string) {
+  const selected = new Set(selectedSupersetIds.value)
+  if (selected.has(exerciseId)) selected.delete(exerciseId)
+  else selected.add(exerciseId)
+  selectedSupersetIds.value = selected
+}
+
+function addSuperset() {
+  if (selectedSupersetIds.value.size < 2) return
+  const group = crypto.randomUUID()
+  for (const exerciseId of selectedSupersetIds.value) {
+    const exercise = exercisesStore.exercises.find((candidate) => candidate.id === exerciseId)
+    if (exercise) {
+      exercises.value.push({ exercise, superset_group: group, sets: defaultSets() })
+    }
+  }
+  closePicker()
 }
 
 function removeExercise(index: number) {
   exercises.value.splice(index, 1)
 }
 
-function moveExercise(index: number, direction: -1 | 1) {
+function removeSupersetGroup(group: string) {
+  exercises.value = exercises.value.filter((exercise) => exercise.superset_group !== group)
+}
+
+function blockExercises(blocks: ExerciseBlock[]): BuilderExercise[] {
+  return blocks.flatMap((block) => block.items.map(({ ex }) => ex))
+}
+
+function moveBlock(index: number, direction: -1 | 1) {
   const target = index + direction
-  if (target < 0 || target >= exercises.value.length) return
-  const temp = exercises.value[index]
-  exercises.value[index] = exercises.value[target]
-  exercises.value[target] = temp
+  if (target < 0 || target >= exerciseBlocks.value.length) return
+  const blocks = [...exerciseBlocks.value]
+  const [block] = blocks.splice(index, 1)
+  blocks.splice(target, 0, block)
+  exercises.value = blockExercises(blocks)
 }
 
 function addSet(exerciseIndex: number) {
-  exercises.value[exerciseIndex].sets.push({
-    target_reps: 10,
-    target_weight_kg: null,
-    is_warmup: false,
-  })
+  const group = exercises.value[exerciseIndex].superset_group
+  const members = group === null
+    ? [exercises.value[exerciseIndex]]
+    : exercises.value.filter((exercise) => exercise.superset_group === group)
+  for (const member of members) {
+    member.sets.push({ target_reps: 10, target_weight_kg: null, is_warmup: false })
+  }
 }
 
 function removeSet(exerciseIndex: number, setIndex: number) {
-  exercises.value[exerciseIndex].sets.splice(setIndex, 1)
+  const group = exercises.value[exerciseIndex].superset_group
+  const members = group === null
+    ? [exercises.value[exerciseIndex]]
+    : exercises.value.filter((exercise) => exercise.superset_group === group)
+  for (const member of members) member.sets.splice(setIndex, 1)
 }
 
 function validate(): string | null {
@@ -114,8 +188,9 @@ function buildPayload(): ProgramCreatePayload {
   return {
     name: programName.value.trim(),
     rest_timer_disabled: restTimerDisabled.value,
-    exercises: exercises.value.map((ex, i) => ({
+    exercises: blockExercises(exerciseBlocks.value).map((ex, i) => ({
       exercise_id: ex.exercise.id,
+      superset_group: ex.superset_group,
       order: i + 1,
       sets: ex.sets.map((s, si) => ({
         set_number: si + 1,
@@ -176,11 +251,12 @@ onMounted(async () => {
     try {
       const program = await programsStore.fetchProgram(programId.value)
       programName.value = program.name
-      restTimerDisabled.value = (program as any).rest_timer_disabled ?? false
+      restTimerDisabled.value = program.rest_timer_disabled ?? false
       exercises.value = program.exercises
         .sort((a, b) => a.order - b.order)
         .map((pe) => ({
           exercise: pe.exercise ?? syntheticExercise(pe.exercise_id),
+          superset_group: pe.superset_group ?? null,
           sets: pe.sets
             .sort((a, b) => a.set_number - b.set_number)
             .map((s) => ({
@@ -242,22 +318,20 @@ onMounted(async () => {
 
         <div v-else class="space-y-4">
           <div
-            v-for="(ex, exIdx) in exercises"
-            :key="exIdx"
-            class="border border-gray-200 rounded-lg overflow-hidden"
+            v-for="(block, blockIdx) in exerciseBlocks"
+            :key="block.key"
+            :data-testid="block.group ? 'superset-block' : 'exercise-block'"
+            :class="block.group ? 'border-2 border-blue-200 rounded-xl p-2 space-y-2' : ''"
           >
-            <!-- Exercise header -->
-            <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
-              <div>
-                <span class="font-medium text-gray-900 text-sm">{{ displayName(ex.exercise) }}</span>
-                <span v-if="ex.exercise.equipment" class="ml-2 text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
-                  {{ ex.exercise.equipment }}
-                </span>
-              </div>
+            <div v-if="block.group" class="flex items-center justify-between px-2 py-1">
+              <span class="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                {{ t('programs.superset_label') }}
+              </span>
               <div class="flex items-center gap-1">
                 <button
-                  @click="moveExercise(exIdx, -1)"
-                  :disabled="exIdx === 0"
+                  data-testid="block-up"
+                  @click="moveBlock(blockIdx, -1)"
+                  :disabled="blockIdx === 0"
                   class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   :title="t('programs.move_up')"
                 >
@@ -266,8 +340,54 @@ onMounted(async () => {
                   </svg>
                 </button>
                 <button
-                  @click="moveExercise(exIdx, 1)"
-                  :disabled="exIdx === exercises.length - 1"
+                  data-testid="block-down"
+                  @click="moveBlock(blockIdx, 1)"
+                  :disabled="blockIdx === exerciseBlocks.length - 1"
+                  class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  :title="t('programs.move_down')"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  class="text-xs font-medium text-red-500 hover:text-red-700"
+                  :title="t('programs.remove_exercise_title')"
+                  @click="removeSupersetGroup(block.group)"
+                >
+                  {{ t('programs.delete') }}
+                </button>
+              </div>
+            </div>
+            <div
+              v-for="{ ex, exIdx } in block.items"
+              :key="exIdx"
+              class="border border-gray-200 rounded-lg overflow-hidden"
+            >
+            <!-- Exercise header -->
+            <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
+              <div>
+                <span class="font-medium text-gray-900 text-sm">{{ displayName(ex.exercise) }}</span>
+                <span v-if="ex.exercise.equipment" class="ml-2 text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                  {{ ex.exercise.equipment }}
+                </span>
+              </div>
+              <div v-if="!block.group" class="flex items-center gap-1">
+                <button
+                  data-testid="block-up"
+                  @click="moveBlock(blockIdx, -1)"
+                  :disabled="blockIdx === 0"
+                  class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  :title="t('programs.move_up')"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  data-testid="block-down"
+                  @click="moveBlock(blockIdx, 1)"
+                  :disabled="blockIdx === exerciseBlocks.length - 1"
                   class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   :title="t('programs.move_down')"
                 >
@@ -349,17 +469,25 @@ onMounted(async () => {
               </button>
             </div>
           </div>
+          </div>
         </div>
 
-        <!-- Add Exercise button / picker -->
+        <!-- Exercise / superset picker -->
         <div class="mt-4">
-          <button
-            v-if="!showPicker"
-            @click="showPicker = true"
-            class="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-          >
-            + {{ t('programs.add_exercise') }}
-          </button>
+          <div v-if="!showPicker" class="grid grid-cols-2 gap-2">
+            <button
+              @click="openPicker('single')"
+              class="py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+            >
+              + {{ t('programs.add_exercise') }}
+            </button>
+            <button
+              @click="openPicker('superset')"
+              class="py-2.5 border-2 border-dashed border-blue-200 rounded-lg text-sm text-blue-500 hover:border-blue-400 hover:text-blue-700 transition-colors"
+            >
+              + {{ t('programs.add_superset') }}
+            </button>
+          </div>
 
           <div v-else class="border border-gray-300 rounded-lg p-3">
             <div class="flex items-center gap-2 mb-2">
@@ -372,7 +500,7 @@ onMounted(async () => {
                 ref="searchInput"
               />
               <button
-                @click="showPicker = false; searchQuery = ''"
+                @click="closePicker"
                 class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
               >
                 {{ t('programs.cancel') }}
@@ -386,13 +514,31 @@ onMounted(async () => {
               <button
                 v-for="ex in filteredExercises"
                 :key="ex.id"
-                @click="addExercise(ex)"
+                @click="pickerMode === 'single' ? addExercise(ex) : toggleSupersetSelection(ex.id)"
                 class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 rounded transition-colors flex items-center justify-between"
               >
-                <span class="text-gray-900">{{ displayName(ex) }}</span>
+                <span class="flex items-center gap-2 text-gray-900">
+                  <input
+                    v-if="pickerMode === 'superset'"
+                    type="checkbox"
+                    :checked="selectedSupersetIds.has(ex.id)"
+                    tabindex="-1"
+                    class="rounded border-gray-300 text-blue-600 pointer-events-none"
+                  />
+                  {{ displayName(ex) }}
+                </span>
                 <span class="text-xs text-gray-400">{{ ex.equipment }}</span>
               </button>
             </div>
+            <button
+              v-if="pickerMode === 'superset'"
+              data-testid="confirm-superset"
+              :disabled="selectedSupersetIds.size < 2"
+              class="mt-3 w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="addSuperset"
+            >
+              {{ t('programs.add_superset') }}
+            </button>
           </div>
         </div>
       </div>

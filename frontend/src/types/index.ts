@@ -30,6 +30,7 @@ export interface ProgramExercise {
   id: string
   program_id: string
   exercise_id: string
+  superset_group?: string | null
   order: number
   sets: ProgramSet[]
   exercise?: Exercise
@@ -56,6 +57,7 @@ export interface WorkoutSet {
   id: string
   workout_id: string
   exercise_id: string
+  superset_group?: string | null
   set_number: number
   weight_kg: number | null
   reps: number | null

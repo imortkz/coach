@@ -7,6 +7,7 @@ import { useRestTimer } from '@/composables/useRestTimer'
 import { apiFetch } from '@/lib/apiFetch'
 import type { Program, ProgramExercise, WorkoutSet, PreFillSet } from '@/types'
 import ExerciseCard from './ExerciseCard.vue'
+import SupersetCard from './SupersetCard.vue'
 import RestTimer from './RestTimer.vue'
 import UndoToast from './UndoToast.vue'
 import WorkoutSummary from './WorkoutSummary.vue'
@@ -101,6 +102,31 @@ const orderedExercises = computed<ProgramExercise[]>(() => {
   return [...program.value.exercises]
     .filter((pe) => !removedExerciseIds.value.has(pe.exercise_id))
     .sort((a, b) => a.order - b.order)
+})
+
+interface WorkoutBlock {
+  key: string
+  group: string | null
+  members: ProgramExercise[]
+}
+
+const workoutBlocks = computed<WorkoutBlock[]>(() => {
+  const result: WorkoutBlock[] = []
+  const grouped = new Map<string, WorkoutBlock>()
+  orderedExercises.value.forEach((exercise, index) => {
+    if (!exercise.superset_group) {
+      result.push({ key: `exercise:${index}`, group: null, members: [exercise] })
+      return
+    }
+    let block = grouped.get(exercise.superset_group)
+    if (!block) {
+      block = { key: `superset:${exercise.superset_group}`, group: exercise.superset_group, members: [] }
+      grouped.set(exercise.superset_group, block)
+      result.push(block)
+    }
+    block.members.push(exercise)
+  })
+  return result
 })
 
 // Group logged sets by exercise_id
@@ -207,6 +233,10 @@ function handleRemoveExercise(exerciseId: string) {
   if (!workoutsStore.activeWorkout) return
   removedExerciseIds.value.add(exerciseId)
   workoutsStore.deleteExerciseSets(exerciseId)
+}
+
+function handleRemoveSuperset(members: ProgramExercise[]) {
+  for (const member of members) handleRemoveExercise(member.exercise_id)
 }
 
 // Discard workout state
@@ -337,22 +367,37 @@ const durationText = computed(() => {
 
       <!-- Exercise cards -->
       <div v-if="orderedExercises.length > 0" class="space-y-4 pb-32">
-        <ExerciseCard
-          v-for="pe in orderedExercises"
-          :key="pe.exercise_id"
-          :exercise="pe.exercise!"
-          :logged-sets="getLoggedSets(pe.exercise_id)"
-          :template-sets="pe.sets"
-          :pre-fill-sets="getPreFillSets(pe.exercise_id)"
-          :extra-set-numbers="getExtraSetNumbers(pe.exercise_id)"
-          :skipped-template-sets="skippedTemplateSets"
-          @add-set="handleAddSet"
-          @set-logged="handleSetLogged"
-          @delete-set="handleDeleteSet"
-          @remove-extra="handleRemoveExtra"
-          @remove-exercise="handleRemoveExercise"
-          @remove-template="handleRemoveTemplate"
-        />
+        <template v-for="block in workoutBlocks" :key="block.key">
+          <SupersetCard
+            v-if="block.group"
+            :members="block.members"
+            :logged-sets="workoutsStore.activeWorkout?.sets ?? []"
+            :pre-fill="workoutsStore.preFill"
+            :extra-set-numbers="extraSets"
+            :skipped-template-sets="skippedTemplateSets"
+            @add-set="handleAddSet"
+            @set-logged="handleSetLogged"
+            @delete-set="handleDeleteSet"
+            @remove-extra="handleRemoveExtra"
+            @remove-exercise="handleRemoveSuperset(block.members)"
+            @remove-template="handleRemoveTemplate"
+          />
+          <ExerciseCard
+            v-else
+            :exercise="block.members[0].exercise!"
+            :logged-sets="getLoggedSets(block.members[0].exercise_id)"
+            :template-sets="block.members[0].sets"
+            :pre-fill-sets="getPreFillSets(block.members[0].exercise_id)"
+            :extra-set-numbers="getExtraSetNumbers(block.members[0].exercise_id)"
+            :skipped-template-sets="skippedTemplateSets"
+            @add-set="handleAddSet"
+            @set-logged="handleSetLogged"
+            @delete-set="handleDeleteSet"
+            @remove-extra="handleRemoveExtra"
+            @remove-exercise="handleRemoveExercise"
+            @remove-template="handleRemoveTemplate"
+          />
+        </template>
       </div>
 
       <div v-else class="text-center py-12 text-gray-500">

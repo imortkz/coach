@@ -23,11 +23,14 @@ function baseWorkout(overrides: Partial<Workout> = {}): Workout {
   }
 }
 
-function mountCard(workout: Workout) {
+function mountCard(workout: Workout, expanded = false) {
   setActivePinia(createPinia())
   return mount(WorkoutCard, {
-    props: { workout, expanded: false, programName: 'Push Day' },
-    global: { plugins: [makeI18n()] },
+    props: { workout, expanded, programName: 'Push Day' },
+    global: {
+      plugins: [makeI18n()],
+      stubs: { RouterLink: { template: '<a><slot /></a>' } },
+    },
   })
 }
 
@@ -52,5 +55,45 @@ describe('WorkoutCard — program version badge (M010)', () => {
     const emitted = wrapper.emitted('view-version')
     expect(emitted).toBeTruthy()
     expect(emitted![0]).toEqual(['p-42', 5])
+  })
+
+  it('groups superset exercises under one localized label', () => {
+    const wrapper = mountCard(baseWorkout({
+      sets: [
+        {
+          id: 's-1', workout_id: 'w-1', exercise_id: 'bench', superset_group: 'group-1',
+          set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
+          logged_at: '2026-07-01T10:01:00Z', rpe: null, rest_seconds: null,
+          exercise: {
+            id: 'bench', name: 'Bench', muscle_group: 'Chest', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
+        },
+        {
+          id: 's-2', workout_id: 'w-1', exercise_id: 'row', superset_group: 'group-1',
+          set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
+          logged_at: '2026-07-01T10:02:00Z', rpe: null, rest_seconds: 60,
+          exercise: {
+            id: 'row', name: 'Row', muscle_group: 'Back', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
+        },
+        {
+          id: 's-3', workout_id: 'w-1', exercise_id: 'squat', superset_group: null,
+          set_number: 1, weight_kg: 100, reps: 5, is_warmup: false,
+          logged_at: '2026-07-01T10:03:00Z', rpe: null, rest_seconds: 60,
+          exercise: {
+            id: 'squat', name: 'Squat', muscle_group: 'Legs', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
+        },
+      ],
+    }), true)
+
+    expect(wrapper.findAll('[data-testid="history-superset"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="history-superset"]').text()).toContain('Superset')
+    expect(wrapper.find('[data-testid="history-superset"]').text()).toContain('Bench')
+    expect(wrapper.find('[data-testid="history-superset"]').text()).toContain('Row')
+    expect(wrapper.findAll('[data-testid="history-exercise"]')).toHaveLength(1)
   })
 })

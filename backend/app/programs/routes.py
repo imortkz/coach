@@ -29,6 +29,7 @@ async def _resolve_exercises(exercises_data: list) -> list[ProgramExercise]:
             exercise_name=exercise.name if exercise else "",
             exercise_muscle_group=exercise.muscle_group if exercise else "",
             exercise_equipment=exercise.equipment if exercise else "",
+            superset_group=ex_data.superset_group,
             order=ex_data.order,
             sets=[
                 ProgramSet(
@@ -77,6 +78,7 @@ async def _exercises_to_read(exercises: list[ProgramExercise]) -> list[ProgramEx
 
         exercises_read.append(ProgramExerciseRead(
             exercise_id=pe.exercise_id,
+            superset_group=pe.superset_group,
             order=pe.order,
             sets=[
                 ProgramSetRead(

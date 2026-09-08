@@ -58,6 +58,7 @@ export default {
     toast_set_deleted: 'Подход удалён',
     toast_set_skipped: 'Подход пропущен',
     toast_workout_discarded: 'Тренировка сброшена',
+    round_n: 'Раунд {n}',
   },
   history: {
     title: 'История',
@@ -80,6 +81,7 @@ export default {
     version_loading: 'Загрузка версии программы...',
     version_failed: 'Не удалось загрузить версию программы',
     version_close: 'Закрыть',
+    superset: 'Суперсет',
   },
   login: {
     tagline: 'Твой персональный фитнес-помощник',
@@ -118,6 +120,8 @@ export default {
     exercises_section: 'Упражнения',
     no_exercises_added: 'Упражнения ещё не добавлены. Нажмите «Добавить упражнение» ниже.',
     add_exercise: 'Добавить упражнение',
+    add_superset: 'Суперсет',
+    superset_label: 'Суперсет',
     add_set: 'Добавить подход',
     set_n: 'Подход {n}',
     reps: 'повт.',
