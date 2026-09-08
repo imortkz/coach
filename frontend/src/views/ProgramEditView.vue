@@ -142,12 +142,17 @@ function removeSupersetGroup(group: string) {
   exercises.value = exercises.value.filter((exercise) => exercise.superset_group !== group)
 }
 
-function moveExercise(index: number, direction: -1 | 1) {
+function blockExercises(blocks: ExerciseBlock[]): BuilderExercise[] {
+  return blocks.flatMap((block) => block.items.map(({ ex }) => ex))
+}
+
+function moveBlock(index: number, direction: -1 | 1) {
   const target = index + direction
-  if (target < 0 || target >= exercises.value.length) return
-  const temp = exercises.value[index]
-  exercises.value[index] = exercises.value[target]
-  exercises.value[target] = temp
+  if (target < 0 || target >= exerciseBlocks.value.length) return
+  const blocks = [...exerciseBlocks.value]
+  const [block] = blocks.splice(index, 1)
+  blocks.splice(target, 0, block)
+  exercises.value = blockExercises(blocks)
 }
 
 function addSet(exerciseIndex: number) {
@@ -183,7 +188,7 @@ function buildPayload(): ProgramCreatePayload {
   return {
     name: programName.value.trim(),
     rest_timer_disabled: restTimerDisabled.value,
-    exercises: exercises.value.map((ex, i) => ({
+    exercises: blockExercises(exerciseBlocks.value).map((ex, i) => ({
       exercise_id: ex.exercise.id,
       superset_group: ex.superset_group,
       order: i + 1,
@@ -313,7 +318,7 @@ onMounted(async () => {
 
         <div v-else class="space-y-4">
           <div
-            v-for="block in exerciseBlocks"
+            v-for="(block, blockIdx) in exerciseBlocks"
             :key="block.key"
             :data-testid="block.group ? 'superset-block' : 'exercise-block'"
             :class="block.group ? 'border-2 border-blue-200 rounded-xl p-2 space-y-2' : ''"
@@ -322,13 +327,37 @@ onMounted(async () => {
               <span class="text-xs font-semibold uppercase tracking-wide text-blue-600">
                 {{ t('programs.superset_label') }}
               </span>
-              <button
-                class="text-xs font-medium text-red-500 hover:text-red-700"
-                :title="t('programs.remove_exercise_title')"
-                @click="removeSupersetGroup(block.group)"
-              >
-                {{ t('programs.delete') }}
-              </button>
+              <div class="flex items-center gap-1">
+                <button
+                  data-testid="block-up"
+                  @click="moveBlock(blockIdx, -1)"
+                  :disabled="blockIdx === 0"
+                  class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  :title="t('programs.move_up')"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  data-testid="block-down"
+                  @click="moveBlock(blockIdx, 1)"
+                  :disabled="blockIdx === exerciseBlocks.length - 1"
+                  class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                  :title="t('programs.move_down')"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  class="text-xs font-medium text-red-500 hover:text-red-700"
+                  :title="t('programs.remove_exercise_title')"
+                  @click="removeSupersetGroup(block.group)"
+                >
+                  {{ t('programs.delete') }}
+                </button>
+              </div>
             </div>
             <div
               v-for="{ ex, exIdx } in block.items"
@@ -345,8 +374,9 @@ onMounted(async () => {
               </div>
               <div v-if="!block.group" class="flex items-center gap-1">
                 <button
-                  @click="moveExercise(exIdx, -1)"
-                  :disabled="exIdx === 0"
+                  data-testid="block-up"
+                  @click="moveBlock(blockIdx, -1)"
+                  :disabled="blockIdx === 0"
                   class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   :title="t('programs.move_up')"
                 >
@@ -355,8 +385,9 @@ onMounted(async () => {
                   </svg>
                 </button>
                 <button
-                  @click="moveExercise(exIdx, 1)"
-                  :disabled="exIdx === exercises.length - 1"
+                  data-testid="block-down"
+                  @click="moveBlock(blockIdx, 1)"
+                  :disabled="blockIdx === exerciseBlocks.length - 1"
                   class="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
                   :title="t('programs.move_down')"
                 >
