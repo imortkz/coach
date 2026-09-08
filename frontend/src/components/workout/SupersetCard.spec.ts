@@ -11,7 +11,14 @@ import type { ProgramExercise, WorkoutSet } from '@/types'
 
 type SetRowWrapper = VueWrapper<InstanceType<typeof SetRow>>
 
-function member(id: string, name: string): ProgramExercise {
+function member(
+  id: string,
+  name: string,
+  flags: Pick<NonNullable<ProgramExercise['exercise']>, 'is_custom' | 'is_assisted'> = {
+    is_custom: false,
+    is_assisted: false,
+  },
+): ProgramExercise {
   return {
     id: `pe-${id}`,
     program_id: 'program-1',
@@ -23,8 +30,7 @@ function member(id: string, name: string): ProgramExercise {
       name,
       muscle_group: id === 'bench' ? 'Chest' : 'Back',
       equipment: 'Barbell',
-      is_custom: false,
-      is_assisted: false,
+      ...flags,
     },
     sets: [
       {
@@ -56,6 +62,24 @@ function logged(exerciseId: string): WorkoutSet {
 }
 
 describe('SupersetCard', () => {
+  it('accepts fully typed custom and assisted exercise fixtures', () => {
+    const customAssisted = member('machine-row', 'Machine Row', {
+      is_custom: true,
+      is_assisted: true,
+    })
+
+    expect(customAssisted.exercise).toMatchObject({
+      is_custom: true,
+      is_assisted: true,
+    })
+    expect(customAssisted.sets).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'ps-machine-row-1',
+        program_exercise_id: 'pe-machine-row',
+      }),
+    ]))
+  })
+
   it('renders rounds and emits setLogged only after the final member of a round', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
