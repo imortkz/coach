@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 
@@ -8,6 +8,8 @@ import SetRow from '@/components/workout/SetRow.vue'
 import { useWorkoutsStore } from '@/stores/workouts'
 import en from '@/locales/en'
 import type { ProgramExercise, WorkoutSet } from '@/types'
+
+type SetRowWrapper = VueWrapper<InstanceType<typeof SetRow>>
 
 function member(id: string, name: string): ProgramExercise {
   return {
@@ -22,10 +24,17 @@ function member(id: string, name: string): ProgramExercise {
       muscle_group: id === 'bench' ? 'Chest' : 'Back',
       equipment: 'Barbell',
       is_custom: false,
+      is_assisted: false,
     },
     sets: [
-      { set_number: 1, target_reps: 8, target_weight_kg: 60, is_warmup: false },
-      { set_number: 2, target_reps: 8, target_weight_kg: 60, is_warmup: false },
+      {
+        id: `ps-${id}-1`, program_exercise_id: `pe-${id}`,
+        set_number: 1, target_reps: 8, target_weight_kg: 60, is_warmup: false,
+      },
+      {
+        id: `ps-${id}-2`, program_exercise_id: `pe-${id}`,
+        set_number: 2, target_reps: 8, target_weight_kg: 60, is_warmup: false,
+      },
     ],
   }
 }
@@ -115,9 +124,9 @@ describe('SupersetCard', () => {
 
     const round1 = wrapper.find('[data-testid="superset-round-1"]')
     const round2 = wrapper.find('[data-testid="superset-round-2"]')
-    expect(round1.findAllComponents(SetRow).map((row) => [row.props('exerciseId'), row.props('setNumber')]))
+    expect(round1.findAllComponents(SetRow).map((row: SetRowWrapper) => [row.props('exerciseId'), row.props('setNumber')]))
       .toEqual([['row', 1]])
-    expect(round2.findAllComponents(SetRow).map((row) => [row.props('exerciseId'), row.props('setNumber')]))
+    expect(round2.findAllComponents(SetRow).map((row: SetRowWrapper) => [row.props('exerciseId'), row.props('setNumber')]))
       .toEqual([['bench', 2], ['row', 2]])
 
     round1.findComponent(SetRow).vm.$emit('complete', {

@@ -64,19 +64,28 @@ describe('WorkoutCard — program version badge (M010)', () => {
           id: 's-1', workout_id: 'w-1', exercise_id: 'bench', superset_group: 'group-1',
           set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
           logged_at: '2026-07-01T10:01:00Z', rpe: null, rest_seconds: null,
-          exercise: { id: 'bench', name: 'Bench', muscle_group: 'Chest', equipment: 'Barbell' },
+          exercise: {
+            id: 'bench', name: 'Bench', muscle_group: 'Chest', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
         },
         {
           id: 's-2', workout_id: 'w-1', exercise_id: 'row', superset_group: 'group-1',
           set_number: 1, weight_kg: 60, reps: 8, is_warmup: false,
           logged_at: '2026-07-01T10:02:00Z', rpe: null, rest_seconds: 60,
-          exercise: { id: 'row', name: 'Row', muscle_group: 'Back', equipment: 'Barbell' },
+          exercise: {
+            id: 'row', name: 'Row', muscle_group: 'Back', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
         },
         {
           id: 's-3', workout_id: 'w-1', exercise_id: 'squat', superset_group: null,
           set_number: 1, weight_kg: 100, reps: 5, is_warmup: false,
           logged_at: '2026-07-01T10:03:00Z', rpe: null, rest_seconds: 60,
-          exercise: { id: 'squat', name: 'Squat', muscle_group: 'Legs', equipment: 'Barbell' },
+          exercise: {
+            id: 'squat', name: 'Squat', muscle_group: 'Legs', equipment: 'Barbell',
+            is_custom: false, is_assisted: false,
+          },
         },
       ],
     }), true)
