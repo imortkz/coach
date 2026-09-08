@@ -377,6 +377,28 @@ describe('ProgramEditView — superset block reordering', () => {
     }
   })
 
+  it('repairs a legacy split superset when a neighboring block moves', async () => {
+    const { wrapper, updateProgram } = await mountReorderFixture([
+      programExercise('A', 1, 'group-1'),
+      programExercise('C', 2, null),
+      programExercise('B', 3, 'group-1'),
+      programExercise('D', 4, null),
+    ])
+
+    await renderedBlocks(wrapper)[1].find('[data-testid="block-up"]').trigger('click')
+    expect(renderedExerciseNames(wrapper)).toEqual(['C', 'A', 'B', 'D'])
+
+    await saveProgram(wrapper)
+    expect(updateProgram.mock.calls[0][1].exercises.map(({ exercise_id, order }) => (
+      { exercise_id, order }
+    ))).toEqual([
+      { exercise_id: 'C', order: 1 },
+      { exercise_id: 'A', order: 2 },
+      { exercise_id: 'B', order: 3 },
+      { exercise_id: 'D', order: 4 },
+    ])
+  })
+
   it('shows only block-level move and delete controls for superset members', async () => {
     const { wrapper } = await mountReorderFixture([
       programExercise('A', 1, 'group-1'),
