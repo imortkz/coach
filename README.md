@@ -5,6 +5,8 @@
 
 A personal gym training companion: program planning, workout logging, and weekly progress reports (volume, frequency, PRs).
 
+For a repository map and current architecture, see the [documentation index](docs/index.md).
+
 ## Stack
 
 - **Backend** — FastAPI + Beanie + MongoDB, Python 3.13 (uv-managed)
